@@ -7,9 +7,14 @@ MJ.screens.sheet = function (screen) {
   const S = MJ.store, D = MJ.domain, UI = MJ.ui, SH = MJ.sheets;
   const el = UI.el;
 
+  // リロード/PWA再起動で _sessionId が消えても、最後に開いた部屋を復元する
+  if (!MJ._sessionId) { try { MJ._sessionId = localStorage.getItem("mahjong:lastSheet") || null; } catch (e) { } }
   const session = MJ._sessionId ? S.byId("sessions", MJ._sessionId) : null;
   if (!session || session.isDeleted) {
-    screen.appendChild(el("div", { class: "empty", text: "部屋が見つかりません。" }));
+    screen.appendChild(el("div", { class: "empty" }, [
+      el("p", { text: "部屋が見つかりません。" }),
+      el("button", { class: "btn btn-primary", onclick: function () { MJ.navigate("rooms"); } }, "部屋一覧へ"),
+    ]));
     return;
   }
   const rule = S.byId("rules", session.ruleSetId);
@@ -47,6 +52,13 @@ MJ.screens.sheet = function (screen) {
       ]),
     ]);
     screen.appendChild(top);
+
+    if (!rule) {
+      screen.appendChild(el("div", { class: "card", style: "border:1px solid var(--warn)" }, [
+        el("div", { class: "small", style: "color:var(--warn);font-weight:700", text: "⚠ この部屋のルールが見つかりません" }),
+        el("div", { class: "small muted", text: "新しい半荘は入力できません（既存の記録は表示できます）。ルール管理で同じ種別のルールを作成してください。" }),
+      ]));
+    }
 
     // テーブル
     const table = el("table", { class: "sheet-table" });
@@ -152,6 +164,7 @@ MJ.screens.sheet = function (screen) {
   // ---- 半荘 追加/編集 ----
   // 登録メンバーが席数より多い部屋では、半荘ごとに「出場した seats 人」を選ぶ（抜け番対応）。
   function openHanchanEditor(existing) {
+    if (!rule) { UI.toast("この部屋のルールが見つかりません。ルール管理で同じ種別のルールを作成してください。"); return; }
     const canPick = pids.length > seats;
 
     // この半荘の参加者（ちょうど seats 人）
@@ -159,6 +172,8 @@ MJ.screens.sheet = function (screen) {
     if (existing) {
       participants = (existing.playerIds && existing.playerIds.slice()) ||
         pids.filter(function (pid) { return existing.raws && existing.raws[pid] != null; });
+      // playerIds が壊れている場合は raws の実体キーを優先し、最後の手段でのみ先頭 seats 人
+      if (participants.length !== seats) participants = pids.filter(function (pid) { return existing.raws && existing.raws[pid] != null; });
       if (participants.length !== seats) participants = pids.slice(0, seats);
     } else if (canPick) {
       const last = (session.hanchans || []).slice(-1)[0]; // 前回と同じ人を初期選択
@@ -189,7 +204,7 @@ MJ.screens.sheet = function (screen) {
       const valInputs = {};
       participants.forEach(function (pid) {
         const inp = el("input", { type: "number", inputmode: "numeric", placeholder: "0" });
-        if (existVals[pid]) inp.value = existVals[pid];
+        if (existVals[pid] != null) inp.value = existVals[pid];
         const sign = el("button", { class: "sign-btn", onclick: function () { const v = parseInt(inp.value, 10); if (!isNaN(v)) inp.value = String(-v); } }, "±");
         valInputs[pid] = inp;
         detail.appendChild(el("div", { class: "score-row" }, [el("span", { class: "score-name", text: pname(pid) }), inp, sign]));
@@ -215,7 +230,7 @@ MJ.screens.sheet = function (screen) {
       participants.forEach(function (pid) {
         const inp = el("input", { type: "number", inputmode: "numeric", placeholder: "例: 25000" });
         inp.value = raws[pid] != null ? raws[pid] : "";
-        inp.addEventListener("input", function () { raws[pid] = inp.value === "" ? null : parseInt(inp.value, 10); });
+        inp.addEventListener("input", function () { const n = parseInt(inp.value, 10); raws[pid] = (inp.value === "" || isNaN(n)) ? null : n; });
         const sign = el("button", { class: "sign-btn", onclick: function () { const n = parseInt(inp.value, 10); if (!isNaN(n)) { inp.value = String(-n); raws[pid] = -n; } } }, "±");
         scoreBox.appendChild(el("div", { class: "score-row" }, [el("span", { class: "score-name", text: pname(pid) }), inp, sign]));
       });
@@ -275,13 +290,13 @@ MJ.screens.sheet = function (screen) {
   }
 
   function onConfirm(parts, raws, shugi, existing, editorCtrl) {
-    if (parts.some(function (pid) { return raws[pid] == null; })) { UI.toast("全員の粗点を入力してください"); return; }
+    if (parts.some(function (pid) { return raws[pid] == null || isNaN(raws[pid]); })) { UI.toast("全員の粗点を正しく入力してください"); return; }
 
     function proceed() {
       const pre = SH.computeResults(effectiveRule(), parts, raws);
       const tieGroups = detectTieGroups(parts, raws);
-      // 0点以下の人を「飛んだ？」と確認する候補に（飛び賞なしルールなら確認不要）
-      const candidates = rule.hasTobiBonus ? parts.filter(function (pid) { return raws[pid] <= 0; }) : [];
+      // 0点以下の人を「飛んだ？」と確認する候補に（飛び賞の有無に関わらず飛びは記録する）
+      const candidates = parts.filter(function (pid) { return raws[pid] <= 0; });
       if (tieGroups.length > 0 || candidates.length > 0) {
         openResolution(parts, raws, tieGroups, candidates, pre, shugi, existing, editorCtrl);
       } else {
@@ -311,7 +326,7 @@ MJ.screens.sheet = function (screen) {
     const bustedFlags = {}, busters = {};
     candidates.forEach(function (pid) {
       bustedFlags[pid] = true; // 既定: 飛んだ
-      busters[pid] = (top && top.playerId !== pid) ? top.playerId : parts.filter(function (p) { return p !== pid; })[0];
+      if (rule.hasTobiBonus) busters[pid] = (top && top.playerId !== pid) ? top.playerId : parts.filter(function (p) { return p !== pid; })[0];
     });
 
     const box = el("div", {});
@@ -344,7 +359,7 @@ MJ.screens.sheet = function (screen) {
               cb,
             ]),
           ];
-          if (bustedFlags[pid]) {
+          if (bustedFlags[pid] && rule.hasTobiBonus) {
             const sel = el("select");
             parts.filter(function (p) { return p !== pid; }).forEach(function (p) {
               const op = el("option", { value: p, text: pname(p) });
@@ -370,7 +385,7 @@ MJ.screens.sheet = function (screen) {
             const tb = {};
             tieGroups.forEach(function (g) { tieChoice[g.key].forEach(function (pid, i) { tb[pid] = i; }); });
             const manualBusted = {}, finalBusters = {};
-            candidates.forEach(function (pid) { manualBusted[pid] = !!bustedFlags[pid]; if (bustedFlags[pid]) finalBusters[pid] = busters[pid]; });
+            candidates.forEach(function (pid) { manualBusted[pid] = !!bustedFlags[pid]; if (bustedFlags[pid] && rule.hasTobiBonus) finalBusters[pid] = busters[pid]; });
             c.close(); editorCtrl.close();
             finalize(parts, raws, Object.keys(tb).length ? tb : null, finalBusters, manualBusted, shugi, existing, null);
           },

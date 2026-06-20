@@ -39,7 +39,8 @@ MJ.screens.data = function (screen) {
       reader.onload = function () {
         let doc;
         try { doc = JSON.parse(reader.result); } catch (e) { UI.toast("ファイルを読み込めませんでした"); return; }
-        if (!doc || (!doc.players && !doc.sessions && !doc.rules)) { UI.toast("バックアップ形式ではありません"); return; }
+        if (!doc || typeof doc !== "object" || Array.isArray(doc) || (!doc.players && !doc.sessions && !doc.rules)) { UI.toast("バックアップ形式ではありません"); return; }
+        if (["players", "rules", "sessions", "rooms", "matches"].some(function (k) { return doc[k] != null && !Array.isArray(doc[k]); })) { UI.toast("バックアップが壊れています（形式が不正です）"); return; }
         UI.confirm({
           title: "データを復元しますか？",
           message: "現在のデータをこのバックアップで置き換えます。この操作は元に戻せません。",

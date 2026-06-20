@@ -85,7 +85,13 @@ MJ.cloud = (function () {
   function signOutNow() { if (auth) auth.signOut(); }
 
   function docRef() { return db.collection("users").doc(user.uid); }
-  function hasData(d) { return !!(d && ((d.players && d.players.length) || (d.sessions && d.sessions.length) || (d.rules && d.rules.length))); }
+  // 「実データあり」の判定。自動シードされる既定ルール(isDefault)・サンプルは除外する。
+  // （新端末で既定ルール2件だけのローカルが、クラウドの全成績を上書き消去する事故を防ぐ）
+  function hasData(d) {
+    if (!d) return false;
+    if ((d.players && d.players.length) || (d.sessions && d.sessions.length)) return true;
+    return !!(d.rules && d.rules.some(function (r) { return r && !r.isDefault && !r.isSample; }));
+  }
 
   function onAuth(u) {
     user = u;
@@ -116,7 +122,9 @@ MJ.cloud = (function () {
 
   function applyRemote(doc) {
     applyingRemote = true;
-    MJ.store.replaceAll(doc);
+    const clean = Object.assign({}, doc);
+    delete clean._updatedAt; // 同期メタはデータ本体に混入させない
+    MJ.store.replaceAll(clean);
     applyingRemote = false;
     if (MJ.rerender) MJ.rerender();
   }
@@ -124,6 +132,7 @@ MJ.cloud = (function () {
   function subscribe() {
     unsub = docRef().onSnapshot(function (snap) {
       if (!snap.exists || snap.metadata.hasPendingWrites) return; // 自分の書き込みは無視
+      if (pushTimer) return; // ローカルに未送信の編集がある間はリモート適用を見送る（編集の消失を防ぐ）
       applyRemote(snap.data());
     }, function (e) { console.error("snapshot", e); });
   }
@@ -135,9 +144,10 @@ MJ.cloud = (function () {
     pushTimer = setTimeout(pushNow, 800);
   }
   function pushNow() {
+    pushTimer = null;
     if (!user || !db) return;
-    const doc = MJ.store.load();
-    doc._updatedAt = MJ.domain.nowISO();
+    // cache を直接変更しないよう浅いコピーにメタを付与して送信
+    const doc = Object.assign({}, MJ.store.load(), { _updatedAt: MJ.domain.nowISO() });
     docRef().set(doc).catch(function (e) { console.error("cloud push", e); });
   }
 

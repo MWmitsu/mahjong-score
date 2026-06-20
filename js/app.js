@@ -19,7 +19,7 @@
   function navigate(route) { location.hash = "#" + route; }
   MJ.navigate = navigate;
   MJ.rerender = function () { render(); };
-  MJ.openSheet = function (id) { MJ._sessionId = id; navigate("sheet"); };
+  MJ.openSheet = function (id) { MJ._sessionId = id; try { localStorage.setItem("mahjong:lastSheet", id); } catch (e) {} navigate("sheet"); };
 
   function currentRoute() {
     const h = (location.hash || "#home").replace(/^#/, "");

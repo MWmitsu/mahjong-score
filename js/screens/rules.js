@@ -9,9 +9,10 @@ MJ.screens.rules = function (screen) {
   const el = UI.el;
 
   function usageCount(ruleId) {
-    const matches = S.all("matches").filter(function (m) { return !m.isDeleted && m.ruleSetId === ruleId; }).length;
-    const rooms = S.all("rooms").filter(function (r) { return !r.isDeleted && r.ruleSetId === ruleId; }).length;
-    return { matches: matches, rooms: rooms };
+    // 部屋は sessions に保存される（旧 matches/rooms コレクションは未使用）。
+    const sess = S.active("sessions").filter(function (s) { return s.ruleSetId === ruleId; });
+    const hanchans = sess.reduce(function (a, s) { return a + (s.hanchans || []).length; }, 0);
+    return { matches: hanchans, rooms: sess.length };
   }
 
   // ---- 一覧 ----

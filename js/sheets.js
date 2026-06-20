@@ -64,8 +64,12 @@ MJ.sheets = (function () {
     if (!hanchan || !hanchan.shugi) return null;
     if (hanchan.shugi.values) return hanchan.shugi.values;
     if (hanchan.shugi.winnerId && hanchan.shugi.amount) {
-      const n = playerIds.length, m = {};
-      playerIds.forEach(function (pid) { m[pid] = (pid === hanchan.shugi.winnerId) ? hanchan.shugi.amount * (n - 1) : -hanchan.shugi.amount; });
+      // 旧形式は「その半荘の出場者」だけに配分する（抜け番＝非出場者に祝儀が付かないように）
+      const parts = (hanchan.playerIds && hanchan.playerIds.length)
+        ? hanchan.playerIds
+        : (playerIds || []).filter(function (p) { return hanchan.raws && hanchan.raws[p] != null; });
+      const n = parts.length, m = {};
+      parts.forEach(function (pid) { m[pid] = (pid === hanchan.shugi.winnerId) ? hanchan.shugi.amount * (n - 1) : -hanchan.shugi.amount; });
       return m;
     }
     return null;

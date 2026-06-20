@@ -67,11 +67,23 @@ MJ.sample = (function () {
   }
 
   function clearSample() {
-    ["sessions", "matches", "rooms", "players", "rules"].forEach(function (kind) {
-      const keep = S.all(kind).filter(function (x) { return !x.isSample; });
-      const doc = S.load();
-      doc[kind] = keep;
+    const doc = S.load();
+    // 非サンプル部屋（ユーザー作成）から参照されているプレイヤー/ルールは「(不明)」化を防ぐため残す
+    const refPlayers = {}, refRules = {};
+    (doc.sessions || []).forEach(function (s) {
+      if (s.isSample) return;
+      (s.playerIds || []).forEach(function (pid) { refPlayers[pid] = true; });
+      (s.hanchans || []).forEach(function (h) { (h.results || []).forEach(function (r) { refPlayers[r.playerId] = true; }); });
+      if (s.ruleSetId) refRules[s.ruleSetId] = true;
     });
+    ["sessions", "matches", "rooms"].forEach(function (kind) {
+      doc[kind] = (doc[kind] || []).filter(function (x) { return !x.isSample; });
+    });
+    // 参照されているサンプルは実データ化(isSample解除)して残し、未参照のサンプルだけ削除
+    doc.players = (doc.players || []).filter(function (p) { return !p.isSample || refPlayers[p.id]; })
+      .map(function (p) { return (p.isSample && refPlayers[p.id]) ? Object.assign({}, p, { isSample: false }) : p; });
+    doc.rules = (doc.rules || []).filter(function (r) { return !r.isSample || refRules[r.id]; })
+      .map(function (r) { return (r.isSample && refRules[r.id]) ? Object.assign({}, r, { isSample: false }) : r; });
     S.persist();
   }
 

@@ -13,13 +13,15 @@ MJ.store = (function () {
     if (cache) return cache;
     try {
       const raw = localStorage.getItem(KEY);
-      cache = raw ? JSON.parse(raw) : empty();
+      const parsed = raw ? JSON.parse(raw) : null;
+      // オブジェクト(非配列)でなければ壊れているとみなし初期化
+      cache = (parsed && typeof parsed === "object" && !Array.isArray(parsed)) ? parsed : empty();
     } catch (e) {
       console.error("読み込み失敗。初期化します。", e);
       cache = empty();
     }
-    // 後方互換: 欠けている配列を補完
-    ["players", "rules", "rooms", "matches", "sessions"].forEach(function (k) { if (!cache[k]) cache[k] = []; });
+    // 後方互換: 各コレクションを配列として保証（壊れた値は []）
+    ["players", "rules", "rooms", "matches", "sessions"].forEach(function (k) { if (!Array.isArray(cache[k])) cache[k] = []; });
     return cache;
   }
 
@@ -70,6 +72,7 @@ MJ.store = (function () {
 
   function replaceAll(doc) {
     cache = Object.assign(empty(), doc || {});
+    ["players", "rules", "rooms", "matches", "sessions"].forEach(function (k) { if (!Array.isArray(cache[k])) cache[k] = []; });
     persist();
   }
 

@@ -66,6 +66,7 @@ MJ.domain = (function () {
       name: "4人麻雀 標準", mahjongType: MahjongType.four,
       initialScore: 25000, returnScore: 30000, okaPoint: 20,
       umaPoints: [20, 10, -10, -20], memo: "初期ルール（25000持ち / 30000返し）",
+      isDefault: true, // 自動シードされた既定ルール（クラウド同期のデータ有無判定で除外する）
     });
   }
   function defaultThreePlayerRule() {
@@ -73,6 +74,7 @@ MJ.domain = (function () {
       name: "3人麻雀 標準", mahjongType: MahjongType.three,
       initialScore: 35000, returnScore: 40000, okaPoint: 15,
       umaPoints: [40, 0, -40], memo: "初期ルール（35000持ち / 40000返し）",
+      isDefault: true,
     });
   }
 
@@ -84,10 +86,11 @@ MJ.domain = (function () {
   function applyRounding(value, rule) {
     switch (rule) {
       case RoundingRule.none: return value;
-      case RoundingRule.roundHalfUp: return Math.round(value);
+      // 0から離れる方向に丸める（負の.5でも対称＝卓の非対称ズレを防ぐ）
+      case RoundingRule.roundHalfUp: return (value < 0 ? -1 : 1) * Math.round(Math.abs(value));
       case RoundingRule.floor: return Math.floor(value);
       case RoundingRule.ceil: return Math.ceil(value);
-      case RoundingRule.goshaRokunyu: return Math.floor(value + 0.4); // 五捨六入(暫定)
+      case RoundingRule.goshaRokunyu: return (value < 0 ? -1 : 1) * Math.floor(Math.abs(value) + 0.4); // 五捨六入（絶対値が.6以上で繰上げ・符号対称）
       default: return value;
     }
   }

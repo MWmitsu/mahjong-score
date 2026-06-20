@@ -7,11 +7,22 @@ MJ.screens.players = function (screen) {
   const S = MJ.store, D = MJ.domain, UI = MJ.ui;
   const el = UI.el;
 
-  // 対局履歴の参加数（削除済み対局は除外）
-  function matchCount(playerId) {
-    return S.all("matches").filter(function (m) {
-      return !m.isDeleted && (m.results || []).some(function (r) { return r.playerId === playerId; });
-    }).length;
+  // 実際に出場した半荘数（成績表=sessions から集計。旧 matches コレクションは未使用）
+  function gamesPlayed(playerId) {
+    let n = 0;
+    S.active("sessions").forEach(function (s) {
+      (s.hanchans || []).forEach(function (h) {
+        if ((h.results || []).some(function (r) { return r.playerId === playerId; })) n++;
+      });
+    });
+    return n;
+  }
+  // 部屋メンバー登録 or 対局結果で参照されているか（物理削除すると(不明)化するため無効化へ誘導）
+  function isReferenced(playerId) {
+    return S.active("sessions").some(function (s) {
+      return (s.playerIds || []).indexOf(playerId) >= 0 ||
+        (s.hanchans || []).some(function (h) { return (h.results || []).some(function (r) { return r.playerId === playerId; }); });
+    });
   }
 
   // 新規追加ボタン
@@ -35,7 +46,7 @@ MJ.screens.players = function (screen) {
 
   const list = el("div", { class: "menu" });
   players.forEach(function (p) {
-    const mc = matchCount(p.id);
+    const mc = gamesPlayed(p.id);
     const sub = mc + "戦" + (p.memo ? " ・ " + p.memo : "");
     list.appendChild(el("button", { class: "tile", onclick: function () { openForm(p); } }, [
       el("span", { class: "emoji", text: p.isActive ? "🧑" : "💤" }),
@@ -96,11 +107,11 @@ MJ.screens.players = function (screen) {
 
   // ---- 削除（履歴があれば無効化へ誘導） ----
   function tryDelete(player, formCtrl) {
-    const mc = matchCount(player.id);
-    if (mc > 0) {
+    if (isReferenced(player.id)) {
+      const mc = gamesPlayed(player.id);
       UI.confirm({
         title: "このプレイヤーは削除できません",
-        message: "このプレイヤーには " + mc + " 件の対局履歴があります。\n成績を残すため、削除ではなく「無効化」をおすすめします。無効にすると新規対局の選択肢から外れますが、過去成績は残ります。",
+        message: "このプレイヤーは部屋・対局（" + mc + "戦）で使用されています。\n成績を残すため、削除ではなく「無効化」をおすすめします。無効にすると新規対局の選択肢から外れますが、過去成績は残ります。",
         confirmText: "無効にする",
         cancelText: "キャンセル",
       }).then(function (ok) {
