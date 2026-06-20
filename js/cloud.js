@@ -30,7 +30,9 @@ MJ.cloud = (function () {
     } catch (e) { console.error("cloud init", e); available = false; }
   }
 
-  function isAvailable() { return !!(available && auth); }
+  // Firebase Auth は file:// では動かない（http/https/chrome-extension のみ対応）。
+  function supportedEnv() { return /^(https?:|chrome-extension:)$/.test(location.protocol); }
+  function isAvailable() { return !!(available && auth && supportedEnv()); }
   function status() { return { available: isAvailable(), signedIn: !!user, email: user ? user.email : null }; }
   function onChange(fn) { listeners.push(fn); }
   function emit() { listeners.forEach(function (f) { try { f(); } catch (e) {} }); }
@@ -51,7 +53,13 @@ MJ.cloud = (function () {
   // （signInWithRedirect は iOS のホーム画面アプリ＝standalone で認証状態が戻らずループするため使わない）
   function signIn() {
     if (!isAvailable()) {
-      infoDialog("オフラインです", "インターネットに接続した状態で、もう一度「Googleでログイン」を押してください。");
+      if (location.protocol === "file:") {
+        infoDialog("オンライン版を開いてください", "いまパソコン内のファイルを直接開いています（file://）。\nこの方式ではGoogleログインは使えません。\n\nブラウザで次のアドレスを開いてから、もう一度ログインしてください：\nhttps://mwmitsu.github.io/mahjong-score/");
+      } else if (!supportedEnv()) {
+        infoDialog("この環境では使えません", "ブラウザのデータ保存が無効か、対応していない環境で開いています（" + location.protocol + "）。");
+      } else {
+        infoDialog("オフラインです", "インターネットに接続した状態で、もう一度「Googleでログイン」を押してください。");
+      }
       return;
     }
     const provider = new firebase.auth.GoogleAuthProvider();

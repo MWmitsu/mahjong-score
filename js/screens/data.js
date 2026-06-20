@@ -97,7 +97,13 @@ MJ.screens.data = function (screen) {
   const cloud = MJ.cloud ? MJ.cloud.status() : { available: false };
   const cloudCard = el("div", { class: "card" }, [el("h2", { text: "クラウド同期（自動バックアップ）" })]);
   if (!cloud.available) {
-    cloudCard.appendChild(el("div", { class: "small muted", text: "オンラインで開くと、Googleログインで自動バックアップ・複数端末同期が使えます。" }));
+    if (location.protocol === "file:") {
+      cloudCard.appendChild(el("div", { class: "small", text: "いまパソコン内のファイルを直接開いています。クラウド同期は使えません。" }));
+      cloudCard.appendChild(el("div", { class: "small muted", style: "margin:8px 0 4px", text: "ブラウザで次のアドレスを開いてご利用ください（ブックマーク推奨）：" }));
+      cloudCard.appendChild(el("a", { href: "https://mwmitsu.github.io/mahjong-score/", target: "_blank", rel: "noopener", style: "word-break:break-all;color:var(--accent,#2e7d32)", text: "https://mwmitsu.github.io/mahjong-score/" }));
+    } else {
+      cloudCard.appendChild(el("div", { class: "small muted", text: "オンラインで開くと、Googleログインで自動バックアップ・複数端末同期が使えます。" }));
+    }
   } else if (cloud.signedIn) {
     cloudCard.appendChild(el("div", { class: "small", style: "color:var(--pos);font-weight:600", text: "✓ 同期中：" + cloud.email }));
     cloudCard.appendChild(el("div", { class: "small muted", style: "margin:6px 0 10px", text: "入力すると自動でクラウドに保存され、別の端末でも同じデータが見られます。手動バックアップは不要です。" }));
