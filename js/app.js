@@ -7,8 +7,8 @@
 
   const titles = {
     home: "麻雀スコア",
-    rooms: "部屋（成績表）",
-    sheet: "成績表",
+    rooms: "部屋",
+    sheet: "部屋",
     playerStats: "プレイヤー別成績",
     ranking: "ランキング",
     rules: "ルール管理",
@@ -55,8 +55,8 @@
 
   // ---- ホーム ----
   function renderHome(screen) {
-    // 主アクション：成績表（部屋）を開く
-    screen.appendChild(UI.el("button", { class: "btn btn-primary home-cta", onclick: function () { navigate("rooms"); } }, "📋 成績表（部屋）"));
+    // 主アクション：部屋（成績をつける）を開く
+    screen.appendChild(UI.el("button", { class: "btn btn-primary home-cta", onclick: function () { navigate("rooms"); } }, "📋 成績をつける（部屋）"));
 
     const menu = [
       { section: "成績" },
@@ -80,8 +80,9 @@
 
     // データ概要
     const counts = UI.el("div", { class: "card" }, [UI.el("h2", { text: "データ" })]);
+    const totalHanchans = S.active("sessions").reduce(function (a, s) { return a + (s.hanchans || []).length; }, 0);
     [["プレイヤー", S.active("players").length], ["ルール", S.active("rules").length],
-     ["部屋", S.active("rooms").length], ["対局", S.active("matches").length]].forEach(function (row) {
+     ["部屋", S.active("sessions").length], ["半荘", totalHanchans]].forEach(function (row) {
       counts.appendChild(UI.el("div", { class: "stat-row" }, [
         UI.el("span", { text: row[0] }), UI.el("span", { class: "v num", text: String(row[1]) }),
       ]));

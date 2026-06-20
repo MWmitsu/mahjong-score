@@ -59,7 +59,7 @@ MJ.screens.data = function (screen) {
 
   // ---- CSV出力（半荘明細） ----
   function exportCSV() {
-    const rows = [["日付", "成績表", "種別", "半荘", "プレイヤー", "順位", "粗点", "ポイント", "飛び", "役満"]];
+    const rows = [["日付", "部屋", "種別", "半荘", "プレイヤー", "順位", "粗点", "ポイント", "飛び", "役満"]];
     S.active("sessions").slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; }).forEach(function (s) {
       (s.hanchans || []).forEach(function (h, i) {
         const shugiVals = MJ.sheets.shugiValuesOf(h, s.playerIds) || {};
@@ -82,7 +82,7 @@ MJ.screens.data = function (screen) {
   function clearAll() {
     UI.confirm({
       title: "すべてのデータを削除しますか？",
-      message: "プレイヤー・ルール・成績表をすべて削除します。先にバックアップを取ることをおすすめします。元に戻せません。",
+      message: "プレイヤー・ルール・部屋をすべて削除します。先にバックアップを取ることをおすすめします。元に戻せません。",
       confirmText: "全部削除する", cancelText: "キャンセル", danger: true,
     }).then(function (ok) {
       if (!ok) return;
@@ -118,7 +118,7 @@ MJ.screens.data = function (screen) {
     el("h2", { text: "現在のデータ" }),
     row("プレイヤー", S.active("players").length + "人"),
     row("ルール", S.active("rules").length + "件"),
-    row("成績表", S.active("sessions").length + "件"),
+    row("部屋", S.active("sessions").length + "件"),
   ]);
   screen.appendChild(counts);
 
@@ -130,12 +130,12 @@ MJ.screens.data = function (screen) {
 
   const csv = el("div", { class: "card" }, [el("h2", { text: "CSV出力" })]);
   csv.appendChild(el("button", { class: "btn btn-secondary", onclick: exportCSV }, "半荘明細をCSV出力"));
-  csv.appendChild(el("div", { class: "small muted", style: "margin-top:8px", text: "Excel等で開けます（日付・成績表・順位・粗点・ポイント・飛び・役満）。" }));
+  csv.appendChild(el("div", { class: "small muted", style: "margin-top:8px", text: "Excel等で開けます（日付・部屋・順位・粗点・ポイント・飛び・役満）。" }));
   screen.appendChild(csv);
 
   const sample = el("div", { class: "card" }, [el("h2", { text: "サンプルデータ" })]);
   sample.appendChild(el("button", { class: "btn btn-secondary", onclick: function () { MJ.sample.clearSample(); UI.toast("サンプルデータを削除しました"); MJ.rerender(); } }, "サンプルデータを削除"));
-  sample.appendChild(el("div", { class: "small muted", style: "margin-top:8px", text: "お試しで入れたサンプル（プレイヤー・成績表）だけを削除します。あなたが作ったデータは消えません。" }));
+  sample.appendChild(el("div", { class: "small muted", style: "margin-top:8px", text: "お試しで入れたサンプル（プレイヤー・部屋）だけを削除します。あなたが作ったデータは消えません。" }));
   screen.appendChild(sample);
 
   const danger = el("div", { class: "card" }, [el("h2", { text: "危険な操作" })]);

@@ -262,3 +262,14 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 .settle-row td { font-weight: 700; }
 .shugi-row td { color: #b8860b; font-weight: 600; font-size: 13px; }
 .shugi-row .idx { color: #b8860b; font-weight: 700; }
+.sheet-table td.rest-cell { color: #c7ccd1; }
+
+/* 自動保存バッジ */
+.save-badge { font-size: 11px; color: var(--muted); white-space: nowrap; flex: none; }
+.save-badge.on { color: #137a2b; font-weight: 700; }
+
+/* 参加者ピッカー（抜け番：半荘ごとに出る人を選ぶ） */
+.pick-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.pick-chip { width: auto; padding: 8px 14px; border: 1.5px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); font-size: 14px; font-weight: 600; cursor: pointer; }
+.pick-chip.on { border-color: #137a2b; background: #137a2b; color: #fff; }
+.pick-chip:active { transform: scale(0.97); }

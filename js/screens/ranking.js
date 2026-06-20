@@ -26,7 +26,7 @@ MJ.screens.ranking = function (screen) {
   if (S.active("sessions").length === 0) {
     screen.appendChild(el("div", { class: "empty" }, [
       el("p", { text: "対局データがありません。" }),
-      el("button", { class: "btn btn-primary", onclick: function () { MJ.navigate("rooms"); } }, "成績表を開く"),
+      el("button", { class: "btn btn-primary", onclick: function () { MJ.navigate("rooms"); } }, "部屋を開く"),
     ]));
     return;
   }
@@ -53,7 +53,7 @@ MJ.screens.ranking = function (screen) {
       to.addEventListener("change", function () { filter.customTo = to.value; rebuildList(); });
       card.appendChild(el("div", { class: "inline-fields" }, [UI.field("開始", from), UI.field("終了", to)]));
     }
-    card.appendChild(UI.field("成績表", selectEl([{ value: "", label: "すべて" }].concat(sessionsWithData().map(function (s) { return { value: s.id, label: s.name }; })), filter.sessionId, function (v) { filter.sessionId = v; rebuildList(); })));
+    card.appendChild(UI.field("部屋", selectEl([{ value: "", label: "すべて" }].concat(sessionsWithData().map(function (s) { return { value: s.id, label: s.name }; })), filter.sessionId, function (v) { filter.sessionId = v; rebuildList(); })));
 
     const chips = el("div", { class: "metric-chips" });
     METRICS.forEach(function (m) { chips.appendChild(el("button", { class: "metric-chip" + (filter.metric === m.key ? " on" : ""), onclick: function () { filter.metric = m.key; renderFilters(); rebuildList(); } }, m.label)); });

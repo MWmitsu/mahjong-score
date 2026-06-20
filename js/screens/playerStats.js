@@ -24,8 +24,8 @@ MJ.screens.playerStats = function (screen) {
 
   if (pids.length === 0) {
     screen.appendChild(el("div", { class: "empty" }, [
-      el("p", { text: "成績データがありません。対局を記録してください。" }),
-      el("button", { class: "btn btn-primary", onclick: function () { MJ.navigate("rooms"); } }, "成績表を開く"),
+      el("p", { text: "成績データがありません。部屋で半荘を入力してください。" }),
+      el("button", { class: "btn btn-primary", onclick: function () { MJ.navigate("rooms"); } }, "部屋を開く"),
     ]));
     return;
   }
@@ -59,7 +59,7 @@ MJ.screens.playerStats = function (screen) {
       card.appendChild(el("div", { class: "inline-fields" }, [UI.field("開始", from), UI.field("終了", to)]));
     }
 
-    card.appendChild(UI.field("成績表", selectEl([{ value: "", label: "すべて" }].concat(sessionsWithData().map(function (s) { return { value: s.id, label: s.name }; })), filter.sessionId, function (v) { filter.sessionId = v; rebuildStats(); })));
+    card.appendChild(UI.field("部屋", selectEl([{ value: "", label: "すべて" }].concat(sessionsWithData().map(function (s) { return { value: s.id, label: s.name }; })), filter.sessionId, function (v) { filter.sessionId = v; rebuildStats(); })));
 
     filterBox.appendChild(card);
   }

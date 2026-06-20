@@ -41,7 +41,7 @@ MJ.sample = (function () {
 
     const session = {
       id: D.uuid(),
-      name: "サンプル成績表（4麻）",
+      name: "サンプル部屋（4麻）",
       date: new Date().toISOString(),
       mahjongType: D.MahjongType.four,
       ruleSetId: rule4.id, ruleName: rule4.name,

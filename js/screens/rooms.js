@@ -8,12 +8,12 @@ MJ.screens.rooms = function (screen) {
 
   function pname(id) { const p = S.byId("players", id); return p ? p.name : "(不明)"; }
 
-  screen.appendChild(el("button", { class: "btn btn-primary home-cta", onclick: function () { chooseType(); } }, "＋ 新規部屋（成績表）"));
+  screen.appendChild(el("button", { class: "btn btn-primary home-cta", onclick: function () { chooseType(); } }, "＋ 新規部屋"));
 
   const sessions = S.active("sessions").slice().sort(function (a, b) { return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
 
   if (sessions.length === 0) {
-    screen.appendChild(el("div", { class: "empty", text: "成績表がありません。「＋ 新規部屋」から作成してください。" }));
+    screen.appendChild(el("div", { class: "empty", text: "部屋がありません。「＋ 新規部屋」から作成してください。" }));
     return;
   }
 
@@ -24,7 +24,7 @@ MJ.screens.rooms = function (screen) {
       el("span", { class: "emoji", text: "📋" }),
       el("span", { style: "min-width:0; flex:1" }, [
         el("div", {}, [
-          el("span", { text: s.name || "(成績表)" }),
+          el("span", { text: s.name || "(部屋)" }),
           el("span", { class: "badge " + (s.mahjongType === D.MahjongType.four ? "four" : "three"), style: "margin-left:6px", text: D.typeShort(s.mahjongType) }),
         ]),
         el("div", { class: "small muted", text: UI.fmtDate(s.date) + " ・ " + (s.hanchans || []).length + "半荘" }),
@@ -40,14 +40,14 @@ MJ.screens.rooms = function (screen) {
     let ctrl;
     const b4 = el("button", { class: "btn btn-primary", style: "margin-bottom:10px", onclick: function () { ctrl.close(); openCreate(D.MahjongType.four); } }, "4人麻雀");
     const b3 = el("button", { class: "btn btn-primary", onclick: function () { ctrl.close(); openCreate(D.MahjongType.three); } }, "3人麻雀");
-    ctrl = UI.sheet({ title: "種類を選択", body: el("div", {}, [el("div", { class: "small muted", style: "margin-bottom:12px", text: "3人麻雀・4人麻雀のどちらの成績表を作りますか？" }), b4, b3]), actions: [{ label: "キャンセル", class: "btn-secondary", onClick: function (c) { c.close(); } }], dismissible: true });
+    ctrl = UI.sheet({ title: "種類を選択", body: el("div", {}, [el("div", { class: "small muted", style: "margin-bottom:12px", text: "3人麻雀・4人麻雀のどちらの部屋を作りますか？" }), b4, b3]), actions: [{ label: "キャンセル", class: "btn-secondary", onClick: function (c) { c.close(); } }], dismissible: true });
   }
 
   function openCreate(type) {
     const gs = D.playerCount(type);
     const rules = S.active("rules").filter(function (r) { return r.mahjongType === type && r.isActive; });
     const now = new Date();
-    const defName = (now.getMonth() + 1) + "/" + now.getDate() + " の成績表";
+    const defName = (now.getMonth() + 1) + "/" + now.getDate() + " の部屋";
 
     const nameInput = el("input", { type: "text", value: defName });
     const rateInput = el("input", { type: "number", inputmode: "numeric", value: (rules[0] && rules[0].pointToYenRate) || 50 });
@@ -58,11 +58,11 @@ MJ.screens.rooms = function (screen) {
       rules.forEach(function (r) { ruleSel.appendChild(el("option", { value: r.id, text: r.name })); });
     }
 
-    // 参加者（ちょうど gs 人）
+    // メンバー（席数以上：3麻でも4人以上で回す場合に全員登録できる）
     const activePlayers = S.active("players").filter(function (p) { return p.isActive; });
     const chosen = [];
     const counter = el("div", { class: "small", style: "margin-bottom:6px" });
-    function updateCounter() { counter.textContent = "選択 " + chosen.length + " / " + gs + "人"; counter.style.color = chosen.length === gs ? "var(--pos)" : "var(--warn)"; }
+    function updateCounter() { counter.textContent = "選択 " + chosen.length + "人（最低 " + gs + "人）"; counter.style.color = chosen.length >= gs ? "var(--pos)" : "var(--warn)"; }
     const checklist = el("div", { class: "check-list" });
     if (activePlayers.length === 0) {
       checklist.appendChild(el("div", { class: "small muted", style: "padding:12px", text: "有効なプレイヤーがいません。プレイヤー管理で追加してください。" }));
@@ -83,11 +83,14 @@ MJ.screens.rooms = function (screen) {
       el("div", { class: "small muted", style: "margin-bottom:8px" }, [el("span", { class: "badge " + (type === D.MahjongType.four ? "four" : "three"), text: D.typeName(type) })]),
       ruleSel ? UI.field("使用ルール", ruleSel) : UI.field("使用ルール", el("div", { class: "small", style: "color:var(--warn)", text: D.typeName(type) + "のルールがありません。先にルール管理で作成してください。" })),
       UI.field("レート（円 / 1ポイント）", rateInput),
-      UI.field("参加者（" + gs + "人）", el("div", {}, [counter, checklist])),
+      UI.field("メンバー（" + gs + "人以上）", el("div", {}, [
+        el("div", { class: "small muted", style: "margin-bottom:6px", text: gs + "人麻雀でも、" + (gs + 1) + "人以上で交代しながら回す場合は全員を登録できます（半荘ごとに出た" + gs + "人を選びます）。" }),
+        counter, checklist,
+      ])),
     ]);
 
     UI.sheet({
-      title: "新規部屋（成績表）",
+      title: "新規部屋",
       body: body,
       actions: [
         { label: "キャンセル", class: "btn-secondary", onClick: function (c) { c.close(); } },
@@ -96,7 +99,7 @@ MJ.screens.rooms = function (screen) {
             const name = nameInput.value.trim();
             if (!name) { UI.toast("名前を入力してください"); return; }
             if (!ruleSel) { UI.toast("先にルールを作成してください"); return; }
-            if (chosen.length !== gs) { UI.toast("参加者を" + gs + "人選んでください"); return; }
+            if (chosen.length < gs) { UI.toast("メンバーを" + gs + "人以上選んでください"); return; }
             const rule = S.byId("rules", ruleSel.value);
             const session = {
               id: D.uuid(), name: name, date: new Date().toISOString(),
