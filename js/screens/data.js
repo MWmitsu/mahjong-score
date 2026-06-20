@@ -113,6 +113,11 @@ MJ.screens.data = function (screen) {
   csv.appendChild(el("div", { class: "small muted", style: "margin-top:8px", text: "Excel等で開けます（日付・成績表・順位・粗点・ポイント・飛び・役満）。" }));
   screen.appendChild(csv);
 
+  const sample = el("div", { class: "card" }, [el("h2", { text: "サンプルデータ" })]);
+  sample.appendChild(el("button", { class: "btn btn-secondary", onclick: function () { MJ.sample.clearSample(); UI.toast("サンプルデータを削除しました"); MJ.rerender(); } }, "サンプルデータを削除"));
+  sample.appendChild(el("div", { class: "small muted", style: "margin-top:8px", text: "お試しで入れたサンプル（プレイヤー・成績表）だけを削除します。あなたが作ったデータは消えません。" }));
+  screen.appendChild(sample);
+
   const danger = el("div", { class: "card" }, [el("h2", { text: "危険な操作" })]);
   danger.appendChild(el("button", { class: "btn btn-danger", onclick: clearAll }, "すべてのデータを削除"));
   screen.appendChild(danger);

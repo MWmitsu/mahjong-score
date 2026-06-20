@@ -88,41 +88,6 @@
     });
     screen.appendChild(counts);
 
-    // 開発ツール（折りたたみ）
-    let devOpen = false;
-    const devBody = UI.el("div", { style: "display:none; margin-top:8px" });
-    const devToggle = UI.el("button", { class: "tile", onclick: function () { devOpen = !devOpen; devBody.style.display = devOpen ? "block" : "none"; devToggle.querySelector(".chev").textContent = devOpen ? "▴" : "▾"; } }, [
-      UI.el("span", { class: "emoji", text: "🛠️" }),
-      UI.el("span", { text: "開発ツール" }),
-      UI.el("span", { class: "chev", text: "▾" }),
-    ]);
-    devBody.appendChild(UI.el("button", { class: "btn btn-secondary", style: "margin-bottom:8px", onclick: function () {
-      const created = MJ.sample.seedDefaultRulesIfNeeded();
-      UI.toast(created ? "初期ルールを作成しました" : "初期ルールは既にあります"); render();
-    } }, "初期ルールを作成"));
-    devBody.appendChild(UI.el("button", { class: "btn btn-secondary", style: "margin-bottom:8px", onclick: function () {
-      MJ.sample.seedSample(); UI.toast("サンプルデータを投入しました"); render();
-    } }, "サンプルデータを投入"));
-    devBody.appendChild(UI.el("button", { class: "btn btn-danger", style: "margin-bottom:8px", onclick: function () {
-      MJ.sample.clearSample(); UI.toast("サンプルデータを削除しました"); render();
-    } }, "サンプルデータを削除"));
-    devBody.appendChild(UI.el("button", { class: "btn btn-secondary", onclick: function () { runSelfTest(devBody); } }, "計算ロジックの自己テスト"));
-    screen.appendChild(UI.el("div", { style: "margin-top:18px" }, [devToggle, devBody]));
-  }
-
-  function runSelfTest(container) {
-    const old = container.querySelector(".selftest-result");
-    if (old) old.remove();
-    const res = MJ.selftest.run();
-    const box = UI.el("div", { class: "selftest-result", style: "margin-top:12px" });
-    box.appendChild(UI.el("div", {
-      class: res.passed === res.total ? "test-pass" : "test-fail",
-      text: "結果: " + res.passed + " / " + res.total + (res.passed === res.total ? " 全て成功 ✓" : " 失敗あり ✗"),
-    }));
-    res.cases.forEach(function (c) {
-      box.appendChild(UI.el("div", { class: "small " + (c.pass ? "test-pass" : "test-fail") , text: (c.pass ? "✓ " : "✗ ") + c.name + (c.detail && !c.pass ? "  (" + c.detail + ")" : "") }));
-    });
-    container.appendChild(box);
   }
 
   window.addEventListener("hashchange", render);
