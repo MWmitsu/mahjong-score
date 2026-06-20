@@ -35,19 +35,44 @@ MJ.cloud = (function () {
   function onChange(fn) { listeners.push(fn); }
   function emit() { listeners.forEach(function (f) { try { f(); } catch (e) {} }); }
 
+  // 情報ダイアログ（1ボタン）。エラー内容をユーザーが読めるように表示。
+  function infoDialog(title, message) {
+    if (!MJ.ui || !MJ.ui.sheet) { alert(title + "\n\n" + message); return; }
+    const lines = String(message).split("\n").map(function (t) { return MJ.ui.el("p", { text: t }); });
+    MJ.ui.sheet({
+      title: title,
+      body: MJ.ui.el("div", { class: "dialog-msg" }, lines),
+      dismissible: true,
+      actions: [{ label: "閉じる", class: "btn-primary", onClick: function (c) { c.close(); } }],
+    });
+  }
+
+  // ログインは全機種で signInWithPopup に統一。
+  // （signInWithRedirect は iOS のホーム画面アプリ＝standalone で認証状態が戻らずループするため使わない）
   function signIn() {
-    if (!isAvailable()) { MJ.ui.toast("オンラインで開いてください"); return; }
-    const provider = new firebase.auth.GoogleAuthProvider();
-    const standalone = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone;
-    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (standalone || mobile) {
-      auth.signInWithRedirect(provider);
-    } else {
-      auth.signInWithPopup(provider).catch(function (e) {
-        if (e && (e.code === "auth/popup-blocked" || e.code === "auth/cancelled-popup-request")) auth.signInWithRedirect(provider);
-        else { console.error("signIn", e); MJ.ui.toast("ログインに失敗しました"); }
-      });
+    if (!isAvailable()) {
+      infoDialog("オフラインです", "インターネットに接続した状態で、もう一度「Googleでログイン」を押してください。");
+      return;
     }
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    auth.signInWithPopup(provider).then(function () {
+      MJ.ui.toast("ログインしました");
+    }).catch(function (e) {
+      const code = (e && e.code) || "";
+      // ユーザー自身が小窓を閉じた／連続タップ → 何もしない
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" || code === "auth/user-cancelled") return;
+      if (code === "auth/popup-blocked") {
+        infoDialog("ログイン用の小窓がブロックされました", "ブラウザがGoogleログインの小窓をブロックしました。\nこのサイトのポップアップを許可してから、もう一度「Googleでログイン」を押してください。");
+        return;
+      }
+      if (code === "auth/unauthorized-domain") {
+        infoDialog("このアドレスは未許可です", "今開いているアドレスがFirebaseに登録されていません。\n\n（エラーコード: " + code + "）\nこの画面を作者に伝えてください。");
+        return;
+      }
+      console.error("signIn", e);
+      infoDialog("ログインできませんでした", ((e && e.message) || "不明なエラー") + "\n\n（エラーコード: " + (code || "なし") + "）");
+    });
   }
   function signOutNow() { if (auth) auth.signOut(); }
 
