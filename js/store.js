@@ -30,6 +30,7 @@ MJ.store = (function () {
       console.error("保存失敗", e);
       MJ.ui && MJ.ui.toast && MJ.ui.toast("保存に失敗しました（容量不足の可能性）");
     }
+    if (window.MJ && MJ.cloud && MJ.cloud.onLocalChange) MJ.cloud.onLocalChange();
   }
 
   function all(kind) { return load()[kind].slice(); }

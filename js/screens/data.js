@@ -94,6 +94,20 @@ MJ.screens.data = function (screen) {
   }
 
   // ---- 画面 ----
+  const cloud = MJ.cloud ? MJ.cloud.status() : { available: false };
+  const cloudCard = el("div", { class: "card" }, [el("h2", { text: "クラウド同期（自動バックアップ）" })]);
+  if (!cloud.available) {
+    cloudCard.appendChild(el("div", { class: "small muted", text: "オンラインで開くと、Googleログインで自動バックアップ・複数端末同期が使えます。" }));
+  } else if (cloud.signedIn) {
+    cloudCard.appendChild(el("div", { class: "small", style: "color:var(--pos);font-weight:600", text: "✓ 同期中：" + cloud.email }));
+    cloudCard.appendChild(el("div", { class: "small muted", style: "margin:6px 0 10px", text: "入力すると自動でクラウドに保存され、別の端末でも同じデータが見られます。手動バックアップは不要です。" }));
+    cloudCard.appendChild(el("button", { class: "btn btn-secondary", onclick: function () { MJ.cloud.signOut(); } }, "ログアウト"));
+  } else {
+    cloudCard.appendChild(el("div", { class: "small muted", style: "margin-bottom:10px", text: "Googleでログインすると、データが自動でクラウドに保存され、機種変更や複数端末でも消えません。" }));
+    cloudCard.appendChild(el("button", { class: "btn btn-primary", onclick: function () { MJ.cloud.signIn(); } }, "Googleでログイン"));
+  }
+  screen.appendChild(cloudCard);
+
   const counts = el("div", { class: "card" }, [
     el("h2", { text: "現在のデータ" }),
     row("プレイヤー", S.active("players").length + "人"),

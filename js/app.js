@@ -97,7 +97,8 @@
     else if (rt !== "home") navigate("home");
   });
 
-  // 起動時: 初期ルールが無ければ作成
+  // 起動時: 初期ルールが無ければ作成・クラウド同期を初期化
   MJ.sample.seedDefaultRulesIfNeeded();
+  if (MJ.cloud && MJ.cloud.init) { MJ.cloud.init(); MJ.cloud.onChange(function () { render(); }); }
   render();
 })();
