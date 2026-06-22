@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="やること">
+<meta name="theme-color" content="#1a1322">
+<title>やること（Web版）</title>
+<style>
+  :root{
+    --bg:#241d3e; --bg2:#1a1322; --panel:#322a55; --panel2:#3a3360;
+    --text:#f4f1ff; --sub:#a59ec9; --dim:#7e73ae; --line:#ffffff24;
+    --accent:#ff6b5e; --now:#ff5a52; --normal:#e8c84d; --any:#5ac87a;
+    --blue:#6fb0e6; --orange:#f0a84d; --green:#5ac87a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg2); color:var(--text);
+    font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,"Segoe UI",sans-serif;
+    font-size:16px; -webkit-text-size-adjust:100%;}
+  body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
+  .wrap{max-width:680px; margin:0 auto; padding:10px 12px 28px;}
+  h1{font-size:18px; margin:6px 2px 12px; color:var(--accent); display:flex; align-items:center; gap:8px;}
+  h1 .sp{flex:1;}
+  button{font-family:inherit; cursor:pointer; border:none; border-radius:10px; color:var(--text);}
+  .icon{background:transparent; color:var(--sub); font-size:18px; padding:6px 9px; border-radius:9px;}
+  .icon:active{background:var(--panel);}
+  .row{display:flex; gap:8px; align-items:flex-start;}
+  textarea,input[type=text]{width:100%; background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    color:var(--text); font-size:16px; padding:11px 12px; resize:none; outline:none;}
+  textarea{min-height:46px; line-height:1.4;}
+  textarea:focus,input:focus{border-color:var(--accent);}
+  .add{background:var(--accent); color:#1a1322; font-weight:700; font-size:20px; min-width:50px; border-radius:12px; padding:0 14px;}
+  .hint{color:var(--dim); font-size:11.5px; margin:6px 2px 0; line-height:1.5;}
+  .tabs{display:flex; gap:6px; margin:12px 0 6px; flex-wrap:wrap;}
+  .tab{background:var(--panel); color:var(--sub); font-size:13.5px; padding:8px 14px; border-radius:999px; border:1px solid transparent;}
+  .tab.on{color:#1a1322; font-weight:700;}
+  .tab.all.on{background:var(--accent);} .tab.today.on{background:var(--orange);}
+  .tab.now.on{background:var(--now);} .tab.any.on{background:var(--any);}
+  .search{margin:8px 0 2px;}
+  .qstat{color:var(--sub); font-size:12px; margin:8px 2px 2px;}
+  .list{margin-top:8px; display:flex; flex-direction:column; gap:2px;}
+  .task{display:flex; align-items:flex-start; gap:9px; padding:11px 8px; border-radius:12px;}
+  .task:active{background:#ffffff10;}
+  .ck{width:26px; height:26px; flex:none; border-radius:8px; border:2px solid var(--dim); background:transparent; margin-top:1px; position:relative;}
+  .ck.done{background:var(--green); border-color:var(--green);}
+  .ck.done::after{content:"✓"; color:#11210f; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800;}
+  .dot{width:11px; flex:none; align-self:center; color:var(--normal); font-size:13px; margin-top:2px;}
+  .body{flex:1; min-width:0;}
+  .ttext{font-size:15.5px; line-height:1.35; word-break:break-word;}
+  .task.is-done .ttext{text-decoration:line-through; color:#8a82b0;}
+  .badges{display:flex; flex-wrap:wrap; gap:5px; margin-top:4px;}
+  .b{font-size:11px; padding:2px 7px; border-radius:7px; background:#ffffff14; color:var(--sub);}
+  .b.due-over{background:#ff5a5226; color:#ff8a82;} .b.due-today{background:#f0a84d26; color:#f4c178;}
+  .b.due-tom{background:#e8c84d22; color:#e8d27a;}
+  .b.pri-high{background:#ff5a5224; color:#ff8a82;} .b.pri-mid{background:#f0a84d22; color:#f4c178;} .b.pri-low{background:#6fb0e622; color:#9ccdf2;}
+  .b.tag{background:#7a6fb033; color:#cbb8ff;}
+  .b.note{background:transparent; color:var(--dim); padding-left:0;}
+  .rowright{flex:none; align-self:center; color:var(--dim); font-size:20px; padding:2px 4px;}
+  .empty{color:var(--dim); font-size:13px; padding:18px 6px; text-align:center;}
+  .memo-wrap{margin-top:18px;}
+  .label{color:var(--sub); font-size:12px; margin:14px 2px 6px;}
+  .foot{display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap;}
+  .foot .stat{color:var(--sub); font-size:12.5px; flex:1; min-width:140px;}
+  .linkbtn{background:var(--panel); color:var(--sub); font-size:12.5px; padding:8px 12px; border-radius:10px;}
+  .linkbtn:active{background:var(--panel2);}
+  /* modal */
+  .ov{position:fixed; inset:0; background:#000000a0; display:none; align-items:flex-end; justify-content:center; z-index:50;}
+  .ov.show{display:flex;}
+  .sheet{width:100%; max-width:680px; max-height:88vh; overflow:auto; background:var(--bg); border-radius:18px 18px 0 0;
+    border-top:2px solid var(--accent); padding:16px 16px calc(20px + env(safe-area-inset-bottom)); box-shadow:0 -12px 40px #000a;}
+  .sheet h2{font-size:15px; margin:2px 0 12px; color:var(--text);}
+  .chips{display:flex; flex-wrap:wrap; gap:7px;}
+  .chip{background:var(--panel); color:var(--sub); border:1px solid var(--line); font-size:13.5px; padding:8px 13px; border-radius:999px;}
+  .chip.on{color:#1a1322; font-weight:700;}
+  .actions{display:flex; flex-wrap:wrap; gap:8px; margin-top:16px;}
+  .danger{color:#ff8a82;}
+  .tagchip{display:inline-flex; align-items:center; gap:5px; background:#7a6fb033; color:#cbb8ff; font-size:13px; padding:6px 11px; border-radius:999px;}
+  .tagchip .x{opacity:.8;}
+  .help{font-size:13px; color:var(--sub); line-height:1.7;}
+  .help b{color:var(--text);}
+  .toast{position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+    background:#2a1d4ef0; border:2px solid var(--orange); color:#fff1d0; font-weight:700; font-size:14px;
+    padding:11px 18px; border-radius:14px; z-index:90; opacity:0; transition:opacity .25s; pointer-events:none; box-shadow:0 8px 30px #0008;}
+  .toast.show{opacity:1;}
+  select{font-family:inherit; font-size:14px; background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:8px;}
+  #cloudBox{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;}
+  #cloudBox .st{font-size:12.5px; color:var(--sub); margin-bottom:8px;}
+  .gbtn{background:#fff; color:#3c4043; font-weight:700; font-size:14px; padding:10px 14px; border-radius:10px; display:inline-flex; align-items:center; gap:8px;}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1>📌 やること<span class="sub" id="ver" style="font-size:11px;color:var(--dim);font-weight:400"></span><span class="sp"></span>
+    <button class="icon" id="btnHelp" title="ヘルプ">？</button>
+    <button class="icon" id="btnData" title="データ">⇅</button>
+  </h1>
+
+  <div class="row">
+    <textarea id="input" placeholder="タスクを入力（改行で複数まとめて）"></textarea>
+    <button class="add" id="btnAdd" title="追加">＋</button>
+  </div>
+  <div class="hint">タブで追加→分類が自動・「今日」タブは締切=今日・「<b>明日 ○○</b>」「<b>金曜 ○○</b>」で締切も自動</div>
+
+  <div class="tabs" id="tabs"></div>
+  <div class="search"><input type="text" id="search" placeholder="🔍 検索（本文・備考・タグ）"></div>
+  <div class="qstat" id="qstat"></div>
+
+  <div class="list" id="list"></div>
+
+  <div class="memo-wrap">
+    <div class="label">📝 メモ</div>
+    <textarea id="memo" placeholder="一時メモ（自由に書けます）" style="min-height:64px"></textarea>
+  </div>
+
+  <div class="foot">
+    <div class="stat" id="stat"></div>
+    <button class="linkbtn" id="btnHideDone">👁 完了を隠す</button>
+    <button class="linkbtn" id="btnClearDone">✓ 完了を消す</button>
+  </div>
+</div>
+
+<!-- 編集シート -->
+<div class="ov" id="editOv">
+  <div class="sheet" id="editSheet"></div>
+</div>
+<!-- データシート -->
+<div class="ov" id="dataOv">
+  <div class="sheet">
+    <h2>⇅ データ・同期</h2>
+    <div id="cloudBox">
+      <div class="st" id="cloudStatus">クラウド同期：…</div>
+      <div id="cloudActions"></div>
+      <div class="help" style="font-size:11.5px; color:var(--dim); margin-top:8px">
+        Googleでログインすると、複数の端末（iPad・PCのブラウザ）で<b>自動的に同期</b>されます。
+      </div>
+    </div>
+    <div class="help" style="margin:14px 0 10px">
+      ファイルでのやり取り（Windows常駐版との橋渡し・バックアップ）：
+    </div>
+    <div class="actions" style="margin-top:4px">
+      <button class="linkbtn" id="expJson">📤 JSON書き出し（バックアップ）</button>
+      <button class="linkbtn" id="impJson">📥 JSON / widget-data.json 取り込み</button>
+    </div>
+    <div class="actions" style="margin-top:8px">
+      <button class="linkbtn" id="expCsv">📤 CSV書き出し（Windows版へ）</button>
+      <button class="linkbtn" id="impCsv">📥 CSV取り込み（Windows版から）</button>
+    </div>
+    <div class="help" style="margin-top:12px; font-size:12px; color:var(--dim)">
+      ・<b>Windows版へ渡す</b>：CSV書き出し → そのファイルを Windows版のトレイ「CSVから取り込み」で読み込み<br>
+      ・<b>Windows版から受け取る</b>：Windows版でCSV書き出し（または widget-data.json）→ ここで取り込み<br>
+      ・取り込みは「本文が同じタスクは重複として除外」して追加します
+    </div>
+    <div class="actions" style="margin-top:16px">
+      <button class="linkbtn" id="dataClose">閉じる</button>
+    </div>
+  </div>
+</div>
+<!-- ヘルプシート -->
+<div class="ov" id="helpOv">
+  <div class="sheet">
+    <h2>？ できること</h2>
+    <div class="help" id="helpBody"></div>
+    <div class="actions" style="margin-top:14px"><button class="linkbtn" id="helpClose">閉じる</button></div>
+  </div>
+</div>
+
+<input type="file" id="filePick" accept=".csv,.json,application/json,text/csv" style="display:none">
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const VERSION = "Web版 v1";
+const LS_KEY = "taskweb-data-v1";
+const CATS = [
+  {key:"now", label:"すぐ", color:"var(--now)"},
+  {key:"normal", label:"通常", color:"var(--normal)"},
+  {key:"any", label:"いつでも", color:"var(--any)"},
+];
+const PRIOS = [
+  {key:"", label:"なし"}, {key:"low", label:"低", badge:"🔹低", cls:"pri-low"},
+  {key:"mid", label:"中", badge:"🔸中", cls:"pri-mid"}, {key:"high", label:"高", badge:"🔺高", cls:"pri-high"},
+];
+const DUE_PRESETS = ()=>{ const t=new Date(); const f=(n)=>fmtDate(addDays(t,n));
+  return [{l:"なし",v:""},{l:"今日",v:f(0)},{l:"明日",v:f(1)},{l:"+3日",v:f(3)},{l:"+1週",v:f(7)}]; };
+const EST_PRESETS = [{l:"なし",v:0},{l:"15分",v:15},{l:"30分",v:30},{l:"1時間",v:60},{l:"2時間",v:120},{l:"4時間",v:240},{l:"8時間",v:480}];
+
+// ---- state ----
+let state = { tasks:[], completions:{}, memo:"", hideDone:false };
+let filter = "all", search = "", editIndex = -1;
+
+// ---- date utils ----
+function pad(n){ return (n<10?"0":"")+n; }
+function fmtDate(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function today(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
+function todayStr(){ return fmtDate(today()); }
+function parseDate(s){ if(!s) return null; const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s); if(!m) return null;
+  const d=new Date(+m[1],+m[2]-1,+m[3]); d.setHours(0,0,0,0); return d; }
+function dueLEToday(s){ const d=parseDate(s); return d? d.getTime()<=today().getTime():false; }
+
+// ---- persistence ----
+function load(){
+  try{ const raw=localStorage.getItem(LS_KEY); if(raw){ const o=JSON.parse(raw);
+    state.tasks=(o.tasks||[]).map(normTask); state.completions=o.completions||{}; state.memo=o.memo||""; state.hideDone=!!o.hideDone; }
+  }catch(e){}
+}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} try{ Cloud.onLocalChange(); }catch(e){} }
+function normTask(t){
+  return {
+    text:String(t.text||""), done:!!t.done, due:String(t.due||""),
+    cat:catKey(t.cat), note:String(t.note||""), repeat:String(t.repeat||""),
+    estimate: (parseInt(t.estimate||t.estimate_min||0,10)||0),
+    priority: prioKey(t.priority),
+    tags: Array.isArray(t.tags)? t.tags.map(String).filter(Boolean)
+          : (typeof t.tags==="string" && t.tags? t.tags.split(/[|\s]+/).filter(Boolean):[]),
+    subs: Array.isArray(t.subs)? t.subs:[],
+  };
+}
+function catKey(v){ v=String(v==null?"":v); for(const c of CATS){ if(c.key===v||c.label===v) return c.key; } return "normal"; }
+function catInfo(k){ return CATS.find(c=>c.key===k)||CATS[1]; }
+function prioKey(v){ v=String(v==null?"":v); for(const p of PRIOS){ if(p.key===v||p.label===v) return p.key; } return ""; }
+function prioInfo(k){ return PRIOS.find(p=>p.key===k)||PRIOS[0]; }
+
+// ---- bullet / smart date ----
+function stripBullet(s){ return String(s).replace(/^[\s　]*(?:[-*・●○▪►–—]|\d+[.)．])[\s　]*/,"").trim(); }
+function parseDueHint(text){
+  let s=String(text).replace(/^[\s　]+/,"");
+  const base=today();
+  const simple=[[/^(今日)(?=[\s　]|$)/,0],[/^(明日)(?=[\s　]|$)/,1],[/^(明後日)(?=[\s　]|$)/,2],
+    [/^(明々後日|明明後日)(?=[\s　]|$)/,3],[/^(来週)(?=[\s　]|$)/,7]];
+  for(const [re,off] of simple){ const m=re.exec(s); if(m) return {due:fmtDate(addDays(base,off)), rest:s.slice(m[0].length).trim()}; }
+  const wd={"日":0,"月":1,"火":2,"水":3,"木":4,"金":5,"土":6};
+  const wm=/^([日月火水木金土])曜日?(?=[\s　]|$)/.exec(s);
+  if(wm){ const target=wd[wm[1]]; const cur=base.getDay(); const delta=((target-cur)+7)%7;
+    return {due:fmtDate(addDays(base,delta)), rest:s.slice(wm[0].length).trim()}; }
+  return {due:"", rest:String(text)};
+}
+function estLabel(min){ min=parseInt(min,10)||0; if(min<=0) return ""; const h=Math.floor(min/60), m=min%60;
+  if(h>0&&m>0) return h+"時間"+m+"分"; if(h>0) return h+"時間"; return m+"分"; }
+
+// ---- add / current defaults ----
+function curCat(){ return filter==="now"?"now":filter==="any"?"any":"normal"; }
+function curDue(){ return filter==="today"?todayStr():""; }
+function newTask(text){ return {text:text,done:false,due:curDue(),cat:curCat(),note:"",repeat:"",estimate:0,priority:"",tags:[],subs:[]}; }
+function addTasks(){
+  const raw=el("input").value; if(!raw.trim()) return; let added=0;
+  for(const ln of raw.split(/\r\n|\r|\n/)){
+    const tx=stripBullet(ln); if(!tx) continue;
+    const hint=parseDueHint(tx); const useHint=(hint.due!=="" && hint.rest!=="");
+    const nt=newTask(useHint?hint.rest:tx); if(useHint) nt.due=hint.due;
+    state.tasks.push(nt); added++;
+  }
+  if(added){ el("input").value=""; save(); render(); }
+}
+
+// ---- filter ----
+function matchFilter(t){
+  if(state.hideDone && t.done) return false;
+  let ok;
+  if(filter==="today") ok = (!t.done && dueLEToday(t.due));
+  else if(filter==="now") ok = (!t.done && t.cat==="now" && !dueLEToday(t.due));
+  else if(filter==="any") ok = (!t.done && t.cat==="any" && !dueLEToday(t.due));
+  else ok = true;
+  if(!ok) return false;
+  if(search){ const hay=((t.text||"")+" "+(t.note||"")+" "+(t.tags||[]).join(" ")).toLowerCase();
+    if(!hay.includes(search.toLowerCase())) return false; }
+  return true;
+}
+function dueInfo(s){
+  const d=parseDate(s); if(!d) return null; const diff=Math.round((d-today())/86400000);
+  const label=(d.getMonth()+1)+"/"+d.getDate();
+  if(diff<0) return {label:"!"+label, cls:"due-over"};
+  if(diff===0) return {label:"今日", cls:"due-today"};
+  if(diff===1) return {label:"明日", cls:"due-tom"};
+  return {label:label, cls:""};
+}
+
+// ---- completion stats ----
+function recordCompletion(){ const k=todayStr(); state.completions[k]=(state.completions[k]||0)+1; }
+function todayCount(){ return state.completions[todayStr()]||0; }
+function streak(){
+  const base=today(); let s=0; let start=0;
+  if(!(state.completions[todayStr()]>=1)) start=1;
+  for(let i=start;i<3660;i++){ const k=fmtDate(addDays(base,-i)); if(state.completions[k]>=1) s++; else break; }
+  return s;
+}
+
+// ---- render ----
+function el(id){ return document.getElementById(id); }
+function render(){
+  renderTabs(); renderList(); renderStat(); renderQStat();
+  el("btnHideDone").textContent = state.hideDone? "👁 完了を表示":"👁 完了を隠す";
+}
+function renderTabs(){
+  const defs=[["all","すべて"],["today","今日"],["now","すぐ"],["any","いつでも"]];
+  el("tabs").innerHTML="";
+  for(const [k,l] of defs){ const b=document.createElement("button");
+    b.className="tab "+k+(filter===k?" on":""); b.textContent=l;
+    b.onclick=()=>{ filter=k; render(); }; el("tabs").appendChild(b); }
+}
+function renderQStat(){
+  let cnt=0,est=0,hi=0,mid=0,lo=0;
+  for(const t of state.tasks){ if(t.done||!matchFilter(t)) continue; cnt++; est+=parseInt(t.estimate,10)||0;
+    if(t.priority==="high")hi++; else if(t.priority==="mid")mid++; else if(t.priority==="low")lo++; }
+  let s="📊 未完了 "+cnt+" 件";
+  if(est>0) s+=" ・ 見積 "+estLabel(est);
+  if(hi+mid+lo>0) s+=" ・ 優先 高"+hi+"/中"+mid+"/低"+lo;
+  el("qstat").textContent=s;
+}
+function renderStat(){ el("stat").textContent="今日の完了 ✓"+todayCount()+"  🔥 連続 "+streak()+" 日"; }
+function renderList(){
+  const list=el("list"); list.innerHTML=""; let any=false;
+  state.tasks.forEach((t,i)=>{
+    if(!matchFilter(t)) return; any=true;
+    const row=document.createElement("div"); row.className="task"+(t.done?" is-done":"");
+    const ck=document.createElement("button"); ck.className="ck"+(t.done?" done":"");
+    ck.onclick=(e)=>{ e.stopPropagation(); toggleDone(i); };
+    const dot=document.createElement("div"); dot.className="dot"; dot.textContent="●";
+    dot.style.color = t.done? "#554f77" : catInfo(t.cat).color;
+    const body=document.createElement("div"); body.className="body";
+    const tt=document.createElement("div"); tt.className="ttext"; tt.textContent=t.text; body.appendChild(tt);
+    const badges=document.createElement("div"); badges.className="badges";
+    const pi=prioInfo(t.priority); if(pi.key){ const b=mkBadge(pi.badge,"b "+pi.cls); badges.appendChild(b); }
+    const di=dueInfo(t.due); if(di){ const b=mkBadge((t.repeat?"🔁":"")+di.label,"b "+di.cls); badges.appendChild(b); }
+    if(parseInt(t.estimate,10)>0){ badges.appendChild(mkBadge("📐"+estLabel(t.estimate),"b")); }
+    (t.tags||[]).forEach(tag=>{ const b=mkBadge("#"+tag,"b tag");
+      b.onclick=(e)=>{ e.stopPropagation(); el("search").value=tag; search=tag; render(); }; badges.appendChild(b); });
+    if(t.note){ badges.appendChild(mkBadge("📝"+t.note.slice(0,18),"b note")); }
+    if(badges.children.length) body.appendChild(badges);
+    const right=document.createElement("div"); right.className="rowright"; right.textContent="›";
+    row.appendChild(ck); row.appendChild(dot); row.appendChild(body); row.appendChild(right);
+    row.onclick=()=>openEdit(i);
+    list.appendChild(row);
+  });
+  if(!any){ const e=document.createElement("div"); e.className="empty";
+    e.textContent= state.tasks.length? "この条件のタスクはありません":"タスクはありません。上の欄に書いて ＋ で追加"; list.appendChild(e); }
+}
+function mkBadge(text,cls){ const b=document.createElement("span"); b.className=cls; b.textContent=text; return b; }
+function toggleDone(i){ const t=state.tasks[i]; if(!t) return;
+  if(!t.done){ t.done=true; recordCompletion(); } else { t.done=false; }
+  save(); render(); }
+
+// ---- edit sheet ----
+function openEdit(i){ editIndex=i; buildEditSheet(); el("editOv").classList.add("show"); }
+function closeEdit(){ editIndex=-1; el("editOv").classList.remove("show"); }
+function buildEditSheet(){
+  const t=state.tasks[editIndex]; if(!t){ closeEdit(); return; }
+  const s=el("editSheet"); s.innerHTML="";
+  s.appendChild(h2("タスクを編集"));
+  const tx=textarea(t.text,"タスク名"); tx.oninput=()=>{ t.text=tx.value; }; tx.onblur=()=>{ save(); }; s.appendChild(tx);
+  s.appendChild(label("備考"));
+  const nb=textarea(t.note,"補足メモ"); nb.style.minHeight="44px"; nb.oninput=()=>{ t.note=nb.value; }; nb.onblur=()=>{ save(); }; s.appendChild(nb);
+  s.appendChild(label("分類"));
+  s.appendChild(chipRow(CATS.map(c=>({label:c.label,on:t.cat===c.key,fn:()=>{ t.cat=c.key; commitEdit(); }}))));
+  s.appendChild(label("📍 優先度"));
+  s.appendChild(chipRow(PRIOS.map(p=>({label:p.label,on:t.priority===p.key,fn:()=>{ t.priority=p.key; commitEdit(); }}))));
+  s.appendChild(label("🏷 タグ"));
+  s.appendChild(tagEditor(t));
+  s.appendChild(label("締切"));
+  s.appendChild(chipRow(DUE_PRESETS().map(d=>({label:d.l,on:String(t.due)===String(d.v),fn:()=>{ t.due=d.v; commitEdit(); }}))));
+  s.appendChild(label("📐 見積もり"+(parseInt(t.estimate,10)>0?"："+estLabel(t.estimate):"")));
+  s.appendChild(chipRow(EST_PRESETS.map(e=>({label:e.l,on:(parseInt(t.estimate,10)||0)===e.v,fn:()=>{ t.estimate=e.v; commitEdit(); }}))));
+  // actions
+  const act=document.createElement("div"); act.className="actions";
+  act.appendChild(linkBtn("↑ 上へ",()=>{ moveTask(editIndex,-1); }));
+  act.appendChild(linkBtn("↓ 下へ",()=>{ moveTask(editIndex,1); }));
+  act.appendChild(linkBtn("📄 複製",()=>{ duplicate(editIndex); }));
+  act.appendChild(linkBtn("🗑 削除",()=>{ if(confirm("このタスクを削除しますか？")){ state.tasks.splice(editIndex,1); save(); closeEdit(); render(); } },"danger"));
+  act.appendChild(linkBtn("閉じる",()=>{ commitEdit(); closeEdit(); }));
+  s.appendChild(act);
+}
+function commitEdit(){ save(); buildEditSheet(); render(); }
+function moveTask(i,dir){ const j=i+dir; if(j<0||j>=state.tasks.length) return;
+  const a=state.tasks; [a[i],a[j]]=[a[j],a[i]]; editIndex=j; save(); buildEditSheet(); render(); }
+function duplicate(i){ const t=state.tasks[i]; const nt=normTask({...t,done:false});
+  state.tasks.splice(i+1,0,nt); save(); closeEdit(); render(); toast("📄 複製しました"); }
+function tagEditor(t){
+  const box=document.createElement("div");
+  const chips=document.createElement("div"); chips.className="chips"; chips.style.marginBottom="8px";
+  (t.tags||[]).forEach(tag=>{ const c=document.createElement("span"); c.className="tagchip";
+    c.innerHTML="#"+escapeHtml(tag)+' <span class="x">✕</span>';
+    c.onclick=()=>{ t.tags=t.tags.filter(x=>x!==tag); commitEdit(); }; chips.appendChild(c); });
+  box.appendChild(chips);
+  const r=document.createElement("div"); r.className="row";
+  const inp=document.createElement("input"); inp.type="text"; inp.placeholder="タグを入力 → 追加（# は自動で外れます）";
+  const add=()=>{ let v=inp.value.trim().replace(/^[#＃]/,"").trim(); if(!v) return;
+    if(!t.tags) t.tags=[]; if(!t.tags.includes(v)) t.tags.push(v); inp.value=""; commitEdit(); };
+  inp.onkeydown=(e)=>{ if(e.key==="Enter"){ e.preventDefault(); add(); } };
+  const ab=document.createElement("button"); ab.className="add"; ab.style.fontSize="18px"; ab.style.minWidth="44px"; ab.textContent="＋"; ab.onclick=add;
+  r.appendChild(inp); r.appendChild(ab); box.appendChild(r);
+  return box;
+}
+
+// ---- ui builders ----
+function h2(t){ const h=document.createElement("h2"); h.textContent=t; return h; }
+function label(t){ const d=document.createElement("div"); d.className="label"; d.textContent=t; return d; }
+function textarea(val,ph){ const a=document.createElement("textarea"); a.value=val||""; a.placeholder=ph||""; return a; }
+function chipRow(items){ const w=document.createElement("div"); w.className="chips";
+  items.forEach(it=>{ const b=document.createElement("button"); b.className="chip"+(it.on?" on":""); b.textContent=it.label;
+    b.onclick=it.fn; w.appendChild(b); }); return w; }
+function linkBtn(text,fn,cls){ const b=document.createElement("button"); b.className="linkbtn "+(cls||""); b.textContent=text; b.onclick=fn; return b; }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+// ---- toast ----
+let toastTimer=null;
+function toast(msg){ const t=el("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2200); }
+
+// ---- CSV ----
+function csvEscape(v){ v=String(v==null?"":v); return '"'+v.replace(/"/g,'""')+'"'; }
+function exportCsv(){
+  const head=["text","done","cat","priority","due","estimate_min","tags","note"];
+  const lines=[head.map(csvEscape).join(",")];
+  for(const t of state.tasks){
+    lines.push([t.text, (t.done?"True":"False"), catInfo(t.cat).label, prioInfo(t.priority).label,
+      t.due, (parseInt(t.estimate,10)||0), (t.tags||[]).join("|"), t.note].map(csvEscape).join(","));
+  }
+  download("tasks_"+stamp()+".csv", "﻿"+lines.join("\r\n")+"\r\n", "text/csv");
+  toast("📤 CSVを書き出しました");
+}
+function parseCsv(text){
+  text=text.replace(/^﻿/,""); const rows=[]; let row=[], cur="", q=false;
+  for(let i=0;i<text.length;i++){ const ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=ch; }
+    else { if(ch==='"') q=true; else if(ch===","){ row.push(cur); cur=""; }
+      else if(ch==="\n"){ row.push(cur); rows.push(row); row=[]; cur=""; }
+      else if(ch==="\r"){} else cur+=ch; } }
+  if(cur!==""||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(r=>r.length>1 || (r.length===1 && r[0]!==""));
+}
+function importCsv(text){
+  const rows=parseCsv(text); if(!rows.length){ toast("CSVを読めませんでした"); return; }
+  const head=rows[0].map(h=>h.trim().toLowerCase()); const idx=(n)=>head.indexOf(n);
+  const iText=idx("text"), iDone=idx("done"), iCat=idx("cat"), iPri=idx("priority"),
+        iDue=idx("due"), iEst=idx("estimate_min"), iTags=idx("tags"), iNote=idx("note");
+  if(iText<0){ toast("CSVに text 列がありません"); return; }
+  const exist=new Set(state.tasks.map(t=>t.text)); let n=0;
+  for(let r=1;r<rows.length;r++){ const c=rows[r]; const text=(c[iText]||"").trim(); if(!text) continue;
+    if(exist.has(text)) continue;
+    const t=newTask(text);
+    if(iCat>=0) t.cat=catKey(c[iCat]); if(iPri>=0) t.priority=prioKey(c[iPri]);
+    if(iDue>=0&&c[iDue]) t.due=String(c[iDue]).trim();
+    if(iEst>=0&&c[iEst]) t.estimate=parseInt(c[iEst],10)||0;
+    if(iTags>=0&&c[iTags]) t.tags=String(c[iTags]).split(/[|\r\n]+/).map(s=>s.trim()).filter(Boolean);
+    if(iNote>=0) t.note=String(c[iNote]||"");
+    if(iDone>=0&&/^(?:true|1|yes|y|done|x|✓|○|はい|済|完了?)$/i.test(String(c[iDone]).trim())) t.done=true;
+    state.tasks.push(t); exist.add(text); n++;
+  }
+  save(); render(); toast("📥 "+n+" 件を取り込みました");
+}
+
+// ---- JSON ----
+function exportJson(){
+  download("taskweb_"+stamp()+".json", JSON.stringify({tasks:state.tasks,completions:state.completions,memo:state.memo},null,2), "application/json");
+  toast("📤 JSONを書き出しました");
+}
+function importJson(text){
+  let o; try{ o=JSON.parse(text.replace(/^﻿/,"")); }catch(e){ toast("JSONを読めませんでした"); return; }
+  const arr = Array.isArray(o)? o : (o.tasks||[]);
+  const exist=new Set(state.tasks.map(t=>t.text)); let n=0;
+  for(const raw of arr){ const t=normTask(raw); if(!t.text||exist.has(t.text)) continue; state.tasks.push(t); exist.add(t.text); n++; }
+  if(o && o.completions && typeof o.completions==="object"){ for(const k in o.completions){ state.completions[k]=Math.max(state.completions[k]||0, o.completions[k]||0); } }
+  if(o && typeof o.memo==="string" && !state.memo) state.memo=o.memo;
+  el("memo").value=state.memo; save(); render(); toast("📥 "+n+" 件を取り込みました");
+}
+function stamp(){ const d=new Date(); return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+"_"+pad(d.getHours())+pad(d.getMinutes())+pad(d.getSeconds()); }
+function download(name,content,type){
+  const blob=new Blob([content],{type:type+";charset=utf-8"}); const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },300);
+}
+let pendingImport=null;
+function pickFile(kind){ pendingImport=kind; el("filePick").value=""; el("filePick").click(); }
+
+// ---- help ----
+function showHelp(){
+  el("helpBody").innerHTML = [
+    "<b>追加</b>：上の欄に書いて ＋（改行で複数まとめて）。「- ・ 1.」などの記号は自動で外れます",
+    "<b>分類・締切</b>：タブで追加→その分類に。「<b>明日 ○○</b>」「<b>金曜 ○○</b>」で締切を自動セット。締切が今日のものは「今日」タブに集まります",
+    "<b>編集</b>：タスクをタップ→分類・優先度・タグ・締切・見積・複製・削除",
+    "<b>タグ</b>：#タグをタップでそのタグを検索",
+    "<b>完了</b>：左の□をタップ。今日の完了数と連続日数を下に表示",
+    "<b>データ</b>：右上 ⇅ から、Windows版とCSV/JSONでやり取り・バックアップ",
+    "<b>ホーム画面に追加</b>：Safariの共有 → 「ホーム画面に追加」でアプリのように使えます",
+  ].map(s=>"・"+s).join("<br>");
+  el("helpOv").classList.add("show");
+}
+
+// ---- wire ----
+function wire(){
+  el("ver").textContent=VERSION;
+  el("btnAdd").onclick=addTasks;
+  el("input").addEventListener("keydown",e=>{ if((e.metaKey||e.ctrlKey)&&e.key==="Enter"){ e.preventDefault(); addTasks(); } });
+  el("search").addEventListener("input",e=>{ search=e.target.value; render(); });
+  el("memo").value=state.memo;
+  el("memo").addEventListener("input",e=>{ state.memo=e.target.value; save(); });
+  el("btnHideDone").onclick=()=>{ state.hideDone=!state.hideDone; save(); render(); };
+  el("btnClearDone").onclick=()=>{ if(confirm("完了したタスクを消しますか？")){ state.tasks=state.tasks.filter(t=>!t.done); save(); render(); } };
+  el("editOv").onclick=(e)=>{ if(e.target.id==="editOv"){ commitEdit(); closeEdit(); } };
+  el("btnData").onclick=()=>{ renderCloud(); el("dataOv").classList.add("show"); };
+  el("dataClose").onclick=()=>el("dataOv").classList.remove("show");
+  el("dataOv").onclick=(e)=>{ if(e.target.id==="dataOv") el("dataOv").classList.remove("show"); };
+  el("btnHelp").onclick=showHelp; el("helpClose").onclick=()=>el("helpOv").classList.remove("show");
+  el("helpOv").onclick=(e)=>{ if(e.target.id==="helpOv") el("helpOv").classList.remove("show"); };
+  el("expCsv").onclick=exportCsv; el("expJson").onclick=exportJson;
+  el("impCsv").onclick=()=>pickFile("csv"); el("impJson").onclick=()=>pickFile("json");
+  el("filePick").addEventListener("change",function(){
+    const f=this.files[0]; if(!f) return; const reader=new FileReader();
+    reader.onload=()=>{ const text=String(reader.result||"");
+      if(pendingImport==="csv" || /\.csv$/i.test(f.name)) importCsv(text); else importJson(text);
+      el("dataOv").classList.remove("show"); };
+    reader.readAsText(f,"utf-8");
+  });
+}
+
+// ---- cloud sync (麻雀アプリと同じ Firebase 方式) ----
+const Cloud = (function(){
+  "use strict";
+  const firebaseConfig = {
+    apiKey:"AIzaSyA1FESENiPINRETzsSC9kx7IWwVz2cFMgE",
+    authDomain:"mahjong-score-640be.firebaseapp.com",
+    projectId:"mahjong-score-640be",
+    storageBucket:"mahjong-score-640be.firebasestorage.app",
+    messagingSenderId:"984052277684",
+    appId:"1:984052277684:web:ecd17b70b7a0ff61a552e1",
+  };
+  const COLL="taskweb";
+  let available=(typeof firebase!=="undefined" && firebase.initializeApp);
+  let auth=null, db=null, user=null, unsub=null, pushTimer=null, applyingRemote=false;
+  function supportedEnv(){ return /^(https?:|chrome-extension:)$/.test(location.protocol); }
+  function isAvailable(){ return !!(available && auth && supportedEnv()); }
+  function status(){ return {available:isAvailable(), signedIn:!!user, email:user?user.email:null, protocol:location.protocol}; }
+  function init(){
+    if(available){ try{
+      firebase.initializeApp(firebaseConfig); auth=firebase.auth(); db=firebase.firestore();
+      db.enablePersistence({synchronizeTabs:true}).catch(function(){});
+      auth.onAuthStateChanged(function(u){ onAuth(u); });
+    }catch(e){ console.error("cloud init",e); available=false; } }
+    renderCloud();
+  }
+  function signIn(){
+    if(!isAvailable()){
+      if(location.protocol==="file:") toast("ログインはオンライン版（ホーム画面に追加したアプリ／URL）でお使いください");
+      else toast("オンライン接続でもう一度お試しください");
+      return;
+    }
+    const provider=new firebase.auth.GoogleAuthProvider(); provider.setCustomParameters({prompt:"select_account"});
+    auth.signInWithPopup(provider).then(function(){ toast("ログインしました"); }).catch(function(e){
+      const code=(e&&e.code)||"";
+      if(code==="auth/popup-closed-by-user"||code==="auth/cancelled-popup-request"||code==="auth/user-cancelled") return;
+      if(code==="auth/popup-blocked"){ toast("ポップアップを許可してください"); return; }
+      console.error("signIn",e); toast("ログインできませんでした（"+(code||"不明")+"）");
+    });
+  }
+  function signOutNow(){ if(auth) auth.signOut(); }
+  function docRef(){ return db.collection(COLL).doc(user.uid); }
+  function hasData(d){ return !!(d && d.tasks && d.tasks.length); }
+  function onAuth(u){
+    user=u; if(unsub){ unsub(); unsub=null; } renderCloud();
+    if(!u) return;
+    docRef().get().then(function(snap){ reconcile(snap.exists?snap.data():null); })
+      .catch(function(e){ console.error("cloud get",e); }).then(function(){ subscribe(); renderCloud(); });
+  }
+  function reconcile(cloud){
+    if(!hasData(cloud)){ pushNow(); return; }
+    if(!hasData(state)){ applyRemote(cloud); return; }
+    const useCloud=window.confirm("この端末とクラウドの両方にデータがあります。\n\n「OK」＝クラウドのデータを使う\n「キャンセル」＝この端末のデータを使う");
+    if(useCloud) applyRemote(cloud); else pushNow();
+  }
+  function applyRemote(doc){
+    applyingRemote=true;
+    state.tasks=(doc.tasks||[]).map(normTask); state.completions=doc.completions||{};
+    state.memo=doc.memo||""; state.hideDone=!!doc.hideDone;
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+    applyingRemote=false; el("memo").value=state.memo; render();
+  }
+  function subscribe(){
+    unsub=docRef().onSnapshot(function(snap){
+      if(!snap.exists || snap.metadata.hasPendingWrites) return;
+      if(pushTimer) return;
+      applyRemote(snap.data());
+    }, function(e){ console.error("snapshot",e); });
+  }
+  function onLocalChange(){ if(applyingRemote||!user||!db) return; if(pushTimer) clearTimeout(pushTimer); pushTimer=setTimeout(pushNow,800); }
+  function pushNow(){ pushTimer=null; if(!user||!db) return;
+    const doc={tasks:state.tasks, completions:state.completions, memo:state.memo, hideDone:state.hideDone, _updatedAt:new Date().toISOString()};
+    docRef().set(doc).catch(function(e){ console.error("cloud push",e); });
+  }
+  return { init, status, signIn, signOut:signOutNow, onLocalChange, pushNow };
+})();
+function renderCloud(){
+  const box=el("cloudStatus"), act=el("cloudActions"); if(!box||!act) return;
+  const st=Cloud.status();
+  if(!st.available){
+    box.textContent = (st.protocol==="file:")
+      ? "クラウド同期：オフライン（ファイルを直接開いています）— この端末内のみに保存"
+      : "クラウド同期：この環境では使えません — この端末内のみに保存";
+    act.innerHTML=""; return;
+  }
+  if(st.signedIn){
+    box.innerHTML="クラウド同期：<b style='color:var(--green)'>オン</b>　"+escapeHtml(st.email||"")+"<br>複数端末で自動同期中";
+    act.innerHTML=""; act.appendChild(linkBtn("ログアウト",()=>Cloud.signOut()));
+  } else {
+    box.textContent="クラウド同期：オフ — Googleでログインすると複数端末で同期できます";
+    act.innerHTML="";
+    const g=document.createElement("button"); g.className="gbtn"; g.textContent="🔑 Googleでログイン"; g.onclick=()=>Cloud.signIn();
+    act.appendChild(g);
+  }
+}
+
+// ---- init ----
+load(); wire(); render(); Cloud.init();
+window.TASKWEB = { state, get tasks(){return state.tasks;}, addTasks, exportCsv, importCsv, parseCsv, parseDueHint,
+  matchFilter, setFilter:(f)=>{filter=f;}, catKey, prioKey, estLabel, cloudStatus:()=>Cloud.status() };
+</script>
+</body>
+</html>
