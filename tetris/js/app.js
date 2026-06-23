@@ -133,6 +133,30 @@
     delete userStore[id]; saveUserStore(); buildMenu();
     flashHint("削除しました。", false);
   }
+  // テト譜(fumen) から完成形を取り込んで登録
+  function importFumen() {
+    const str = ($("fumen-text").value || "").trim();
+    if (!str) { flashHint("テト譜コード（v115@…）を貼り付けてください。", true); return; }
+    if (!window.TT_FUMEN) { flashHint("fumenデコーダが読み込まれていません。", true); return; }
+    const res = window.TT_FUMEN.toTargetField(str);
+    if (res.error) { flashHint("テト譜の取込に失敗: " + res.error, true); return; }
+    if (G.buildSlot) {
+      const slot = G.buildSlot;
+      userStore[slot] = Object.assign({}, userStore[slot], { field: res.field });
+      saveUserStore(); buildMenu();
+      const t = findTemplate(slot);
+      flashHint("テト譜を「" + (t ? t.name : slot) + "」に登録しました（" + res.pages + "ページ）。", false);
+      startTemplate(slot);
+    } else {
+      const name = window.prompt("テンプレ名を入力", "テト譜テンプレ");
+      if (!name) return;
+      const id = "cust" + Date.now();
+      userStore[id] = { custom: true, name: name, desc: "テト譜取込", field: res.field };
+      saveUserStore(); buildMenu();
+      flashHint("テト譜から「" + name + "」を登録しました（" + res.pages + "ページ）。", false);
+      startTemplate(id);
+    }
+  }
 
   // ===== ミノ列(ネクスト)補充 =====
   function refillBag() {
@@ -707,6 +731,7 @@
     // 盤面保存 / インポート・エクスポート
     $("btn-save").addEventListener("click", function () { saveCurrentTo(G.buildSlot); });
     $("btn-savenew").addEventListener("click", saveAsNew);
+    $("btn-fumen").addEventListener("click", importFumen);
     $("btn-export").addEventListener("click", function () {
       $("io-text").value = JSON.stringify(userStore);
       flashHint("エクスポート: 下のテキストをコピーして保存してください。", false);

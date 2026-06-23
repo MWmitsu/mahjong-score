@@ -47,6 +47,7 @@ html, body {
   border-radius: 10px; padding: 12px;
 }
 .panel-title { font-size: 12px; color: var(--muted); margin-bottom: 8px; letter-spacing: .05em; }
+.panel-title.sub { margin-top: 12px; color: var(--accent); }
 #hold, #next { display: block; background: #0d1117; border-radius: 6px; margin: 0 auto; }
 
 .stats .stat {
