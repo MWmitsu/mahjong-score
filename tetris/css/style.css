@@ -1,0 +1,126 @@
+:root {
+  --bg: #0b0e14;
+  --panel: #161b24;
+  --panel2: #1d2430;
+  --line: #2a3340;
+  --text: #e6edf3;
+  --muted: #8b97a7;
+  --accent: #27c4e6;
+  --accent2: #3fce4d;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #11161f, #0b0e14);
+}
+.topbar h1 { font-size: 18px; margin: 0; letter-spacing: .02em; }
+.mode-tag { font-size: 13px; color: var(--muted); }
+.mode-tag span { color: var(--accent); font-weight: 700; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, auto) 240px;
+  gap: 16px;
+  padding: 16px;
+  align-items: start;
+  justify-content: center;
+}
+.center { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+#board {
+  background: #0d1117;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  touch-action: none;
+}
+
+.side { display: flex; flex-direction: column; gap: 14px; }
+.panel {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 12px;
+}
+.panel-title { font-size: 12px; color: var(--muted); margin-bottom: 8px; letter-spacing: .05em; }
+#hold, #next { display: block; background: #0d1117; border-radius: 6px; margin: 0 auto; }
+
+.stats .stat {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 4px 0; border-bottom: 1px dashed var(--line); font-size: 14px;
+}
+.stats .stat:last-child { border-bottom: 0; }
+.stats .stat b { font-size: 18px; color: var(--accent2); }
+
+.ctrl-btn {
+  display: block; width: 100%; margin: 6px 0; padding: 9px 10px;
+  background: var(--panel2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px;
+  font-size: 14px; cursor: pointer;
+}
+.ctrl-btn:hover { background: #283141; }
+.ctrl-btn.primary { background: #1f6f3a; border-color: #2c8f4d; }
+.ctrl-btn.primary:hover { background: #258044; }
+
+.tpl-list { display: flex; flex-direction: column; gap: 6px; }
+.tpl-btn {
+  text-align: left; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--text);
+}
+.tpl-btn:hover { background: #283141; border-color: var(--accent); }
+.tpl-cat {
+  display: inline-block; font-size: 10px; color: #0b0e14; background: var(--accent);
+  padding: 1px 6px; border-radius: 10px; margin-right: 6px; font-weight: 700;
+}
+.tpl-name { font-size: 13px; }
+
+.toggle { display: block; font-size: 13px; padding: 5px 0; cursor: pointer; color: var(--text); }
+.toggle input { margin-right: 8px; transform: translateY(1px); }
+
+.hint {
+  max-width: 520px; min-height: 20px; text-align: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 12px; font-size: 13px; color: var(--text); line-height: 1.5;
+}
+.hint.err { border-color: #e74060; color: #ff9fb0; background: #2a1820; }
+
+.verify-out { margin-top: 8px; }
+.vtab { width: 100%; border-collapse: collapse; font-size: 11px; }
+.vtab th, .vtab td { border-bottom: 1px solid var(--line); padding: 4px 3px; text-align: left; }
+.vtab .vok { color: var(--accent2); }
+.vtab .vng { color: #ff9fb0; }
+
+.touchpad { display: none; }
+
+.help {
+  text-align: center; font-size: 12px; color: var(--muted);
+  padding: 10px 16px 24px; line-height: 1.7;
+}
+.help b { color: var(--text); }
+
+/* ===== スマホ・タブレット ===== */
+@media (max-width: 820px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .side { flex-direction: row; flex-wrap: wrap; }
+  .side .panel { flex: 1 1 140px; }
+  #board { width: 100%; max-width: 360px; height: auto; }
+  .touchpad {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px; width: 100%; max-width: 360px; margin-top: 6px;
+  }
+  .touchpad button {
+    padding: 14px 0; font-size: 16px; background: var(--panel2);
+    color: var(--text); border: 1px solid var(--line); border-radius: 10px;
+    -webkit-user-select: none; user-select: none; touch-action: manipulation;
+  }
+  .touchpad button:active { background: var(--accent); color: #0b0e14; }
+  .touchpad .wide { grid-column: span 3; }
+}
