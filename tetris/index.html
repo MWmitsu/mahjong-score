@@ -25,6 +25,7 @@
         <div class="panel-title">スタッツ</div>
         <div class="stat"><span>ライン</span><b id="stat-lines">0</b></div>
         <div class="stat"><span>ミノ数</span><b id="stat-pieces">0</b></div>
+        <div class="stat"><span>T-Spin</span><b id="stat-tspin">0</b></div>
         <div class="stat"><span>PC</span><b id="stat-pc">0</b></div>
       </div>
       <div class="panel">
@@ -66,6 +67,18 @@
       </div>
 
       <div class="panel">
+        <div class="panel-title">テンプレ保存・共有</div>
+        <button id="btn-save" class="ctrl-btn primary">現在の盤面を保存</button>
+        <button id="btn-savenew" class="ctrl-btn">新規テンプレとして保存</button>
+        <p class="note">未設定テンプレを選ぶ→フリーで組む→保存、でその枠が練習可能に。</p>
+        <textarea id="io-text" class="io-text" placeholder="ここにJSONを貼り付けてインポート / エクスポートで出力"></textarea>
+        <div class="io-row">
+          <button id="btn-export" class="ctrl-btn small">エクスポート</button>
+          <button id="btn-import" class="ctrl-btn small">インポート</button>
+        </div>
+      </div>
+
+      <div class="panel">
         <div class="panel-title">設定</div>
         <label class="toggle"><input type="checkbox" id="set-ghost"> ゴースト表示</label>
         <label class="toggle"><input type="checkbox" id="set-hint"> ヒント(目標位置)</label>
@@ -74,8 +87,8 @@
       </div>
 
       <div class="panel">
-        <div class="panel-title">テンプレ検証</div>
-        <button id="btn-verify" class="ctrl-btn">全テンプレを検証</button>
+        <div class="panel-title">手順型ドリルの検証</div>
+        <button id="btn-verify" class="ctrl-btn">手順型ドリルを検証</button>
         <div id="verify-out" class="verify-out"></div>
       </div>
     </aside>
@@ -83,12 +96,15 @@
 
   <footer class="help">
     <b>キー操作</b>: ← → 移動 ／ ↑ または X 右回転 ／ Z または Ctrl 左回転 ／ A 180°回転 ／
-    ↓ ソフトドロップ ／ Space ハードドロップ ／ Shift または C ホールド ／ U または ⌫ 一手戻す ／ R リセット
+    ↓ ソフトドロップ ／ Space ハードドロップ ／ Shift または C ホールド ／ U または ⌫ 一手戻す ／ R リセット<br />
+    <b>T-Spin</b> はスロットに回転で滑り込ませると自動判定（T-Spin / Mini / シングル〜トリプル）。
+    <b>完成形テンプレ</b>はうすい色の目標形を組み上げれば成功（スピン・ホールドOK）。
   </footer>
 
   <!-- ビルド不要・classic script（file:// でも動く） -->
   <script src="js/engine.js"></script>
   <script src="js/templates.js"></script>
+  <script src="js/catalog.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

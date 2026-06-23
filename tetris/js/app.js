@@ -8,6 +8,7 @@
 
   const E = window.TT;
   const TPL = window.TT_TEMPLATES;
+  const CAT = window.TT_CATALOG;
   const COLS = E.COLS, ROWS = E.ROWS;
   const CELL = 30;       // メイン盤のセルピクセル
   const MINI = 18;       // ホールド/ネクストのセルピクセル
@@ -23,6 +24,7 @@
 
   const $ = function (id) { return document.getElementById(id); };
   const statLines = $("stat-lines"), statPieces = $("stat-pieces"), statPc = $("stat-pc");
+  const statTspin = $("stat-tspin");
   const hintBox = $("hint-text"), modeLabel = $("mode-label");
 
   // ---- 設定 ----
@@ -47,10 +49,14 @@
     queue: [],             // 表示用ネクスト（letterの配列）
     history: [],           // Undo用スナップショット
     // 集計
-    lines: 0, pieces: 0, pcs: 0,
+    lines: 0, pieces: 0, pcs: 0, tspins: 0,
     over: false,
+    // 直前操作の追跡（T-spin判定用）
+    lastRotation: false, lastKick: 0,
+    lastClearLabel: "",
     // テンプレ
     template: null,
+    buildSlot: null,       // 盤面エディタで保存先となるテンプレid
     stepIndex: 0,
     targetCells: null,     // 現在ステップの目標セル [[r,c]...]
     targetPlacement: null, // {rot, px, py}
@@ -58,6 +64,75 @@
     // gravity
     lastGravity: 0,
   };
+
+  // ===== テンプレ・レジストリ & 保存（localStorage） =====
+  const LS_KEY = "tt_user_templates_v1";
+  let userStore = loadUserStore();
+  function loadUserStore() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}") || {}; }
+    catch (e) { return {}; }
+  }
+  function saveUserStore() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(userStore)); }
+    catch (e) { flashHint("保存に失敗しました（localStorage不可の環境かも）。", true); }
+  }
+  // id から実体テンプレを取得（手順型built-in / カタログ+保存 / カスタム）
+  function findTemplate(id) {
+    const s = TPL.byId(id);
+    if (s) return s; // 手順型 built-in（type未指定→steps扱い）
+    const c = CAT.byId(id);
+    if (c) {
+      const u = userStore[id] || {};
+      return Object.assign({}, c, { type: "field", field: u.field || c.field || null, queue: u.queue || c.queue || null });
+    }
+    const u = userStore[id];
+    if (u && u.custom) {
+      return { id: id, name: u.name || id, group: "カスタム", desc: u.desc || "", type: "field", field: u.field || null, queue: u.queue || null };
+    }
+    return null;
+  }
+  function fieldSet(id) {
+    const u = userStore[id];
+    if (u && u.field) return true;
+    const c = CAT.byId(id);
+    return !!(c && c.field);
+  }
+  function customIds() {
+    return Object.keys(userStore).filter(function (k) { return userStore[k] && userStore[k].custom; });
+  }
+  // 現在の盤面 → field配列（色を保持。20x10）
+  function gridToField(g) { return g.map(function (row) { return row.map(function (c) { return c || null; }); }); }
+  function saveCurrentTo(id) {
+    if (!id) { saveAsNew(); return; }
+    const field = gridToField(G.grid);
+    if (!field.some(function (row) { return row.some(function (c) { return c; }); })) {
+      flashHint("盤面が空です。形を組んでから保存してください。", true); return;
+    }
+    userStore[id] = Object.assign({}, userStore[id], { field: field });
+    saveUserStore();
+    const t = findTemplate(id);
+    flashHint("保存しました：「" + (t ? t.name : id) + "」が練習可能になりました。", false);
+    buildMenu();
+  }
+  function saveAsNew() {
+    const field = gridToField(G.grid);
+    if (!field.some(function (row) { return row.some(function (c) { return c; }); })) {
+      flashHint("盤面が空です。形を組んでから保存してください。", true); return;
+    }
+    const name = window.prompt("新規テンプレ名を入力", "マイテンプレ");
+    if (!name) return;
+    const id = "cust" + Date.now();
+    userStore[id] = { custom: true, name: name, desc: "自作テンプレ", field: field };
+    saveUserStore();
+    flashHint("新規テンプレ「" + name + "」を保存しました。", false);
+    buildMenu();
+  }
+  function deleteUserTemplate(id) {
+    if (!userStore[id]) return;
+    if (!window.confirm("このテンプレの保存データを削除しますか？")) return;
+    delete userStore[id]; saveUserStore(); buildMenu();
+    flashHint("削除しました。", false);
+  }
 
   // ===== ミノ列(ネクスト)補充 =====
   function refillBag() {
@@ -68,7 +143,8 @@
     return G.bag.shift();
   }
   function ensureQueue(n) {
-    if (G.mode === "template") return; // テンプレは固定列
+    if (G.mode === "template" && tplType() === "steps") return; // 手順型は固定列
+    if (G.mode === "template" && G.template && G.template.queue) return; // field型でミノ順指定あり
     refillBag();
     while (G.queue.length < n) G.queue.push(nextFromBag());
   }
@@ -80,7 +156,8 @@
       active: G.active ? Object.assign({}, G.active) : null,
       hold: G.hold, canHold: G.canHold,
       bag: G.bag.slice(), queue: G.queue.slice(),
-      lines: G.lines, pieces: G.pieces, pcs: G.pcs,
+      lines: G.lines, pieces: G.pieces, pcs: G.pcs, tspins: G.tspins,
+      lastRotation: G.lastRotation, lastKick: G.lastKick, lastClearLabel: G.lastClearLabel,
       stepIndex: G.stepIndex, mistake: G.mistake, over: G.over,
     };
   }
@@ -93,10 +170,17 @@
     const s = G.history.pop();
     G.grid = s.grid; G.active = s.active; G.hold = s.hold; G.canHold = s.canHold;
     G.bag = s.bag; G.queue = s.queue;
-    G.lines = s.lines; G.pieces = s.pieces; G.pcs = s.pcs;
+    G.lines = s.lines; G.pieces = s.pieces; G.pcs = s.pcs; G.tspins = s.tspins;
+    G.lastRotation = s.lastRotation; G.lastKick = s.lastKick; G.lastClearLabel = s.lastClearLabel;
     G.stepIndex = s.stepIndex; G.mistake = s.mistake; G.over = s.over;
     if (G.mode === "template") computeTarget();
     render();
+  }
+
+  // テンプレ種別: 'steps'(手順型・per-step) / 'field'(完成形ターゲット型)
+  function tplType() {
+    if (!G.template) return null;
+    return G.template.type === "field" ? "field" : "steps";
   }
 
   // ===== テンプレ: col(最左列)→px 変換 & 目標算出 =====
@@ -114,6 +198,7 @@
   function computeTarget() {
     G.targetCells = null; G.targetPlacement = null;
     if (G.mode !== "template" || !G.template) return;
+    if (tplType() === "field") return; // field型は computeTarget 不要（盤面全体が目標）
     if (G.stepIndex >= G.template.steps.length) return;
     const step = G.template.steps[G.stepIndex];
     const pl = stepPlacement(G.grid, step);
@@ -121,12 +206,42 @@
     G.targetCells = E.absCells(step.piece, step.rot, pl.px, pl.py);
   }
 
+  // field型: 現在の盤面が目標の完成形と一致したか（消去前で比較）
+  function fieldMatches() {
+    const f = G.template.field;
+    if (!f) return false;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const want = !!(f[r] && f[r][c]);
+        const got = !!G.grid[r][c];
+        if (want !== got) return false;
+      }
+    }
+    return true;
+  }
+  // field型: 目標外のセルを埋めてしまった＝発散（やり直し推奨）
+  function fieldOverflow() {
+    const f = G.template.field;
+    if (!f) return false;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (G.grid[r][c] && !(f[r] && f[r][c])) return true;
+      }
+    }
+    return false;
+  }
+
   // ===== スポーン =====
   function spawnFromQueue() {
     let piece;
-    if (G.mode === "template") {
+    if (G.mode === "template" && tplType() === "steps") {
       if (G.stepIndex >= G.template.steps.length) { onTemplateComplete(); return; }
       piece = G.template.steps[G.stepIndex].piece;
+    } else if (G.mode === "template" && G.template && G.template.queue) {
+      // field型・ミノ順指定あり：順に供給し、尽きたらbagへ
+      const q = G.template.queue;
+      if (G.stepIndex < q.length) piece = q[G.stepIndex];
+      else { ensureQueue(6); piece = G.queue.shift(); ensureQueue(6); }
     } else {
       ensureQueue(6);
       piece = G.queue.shift();
@@ -139,6 +254,7 @@
     }
     G.active = st;
     G.canHold = true;
+    G.lastRotation = false; // 出現直後はまだ回転していない
     if (G.mode === "template") computeTarget();
     render();
   }
@@ -148,24 +264,34 @@
     if (!G.active || G.over) return false;
     const a = G.active;
     if (!E.collide(G.grid, a.piece, a.rot, a.px + dx, a.py + dy)) {
-      a.px += dx; a.py += dy; render(); return true;
+      a.px += dx; a.py += dy;
+      G.lastRotation = false; // 平行移動したので「直前=回転」を解除（T-spin判定用）
+      render(); return true;
     }
     return false;
   }
   function tryRotate(dir) {
     if (!G.active || G.over) return;
     const res = E.rotate(G.grid, G.active, dir);
-    if (res) { G.active.rot = res.rot; G.active.px = res.px; G.active.py = res.py; render(); }
+    if (res) {
+      G.active.rot = res.rot; G.active.px = res.px; G.active.py = res.py;
+      G.lastRotation = true; G.lastKick = res.kick;
+      render();
+    }
   }
   function softDrop() { if (!tryMove(0, 1) && settings.gravity) {/*lock handled by gravity*/} }
   function hardDrop() {
     if (!G.active || G.over) return;
     const a = G.active;
-    a.py = E.dropY(G.grid, a.piece, a.rot, a.px, a.py);
+    const target = E.dropY(G.grid, a.piece, a.rot, a.px, a.py);
+    if (target > a.py) G.lastRotation = false; // 落下した＝回転直後ではない（イモビリティ・ルール）
+    a.py = target;
     lockPiece();
   }
   function holdPiece() {
-    if (!G.active || G.over || !G.canHold || G.mode === "template") return; // テンプレ中はホールド無効
+    // 手順型/ミノ順固定のfield型ではホールド無効（決め打ちのため）
+    const lockedOrder = (G.mode === "template") && (tplType() === "steps" || (G.template && G.template.queue));
+    if (!G.active || G.over || !G.canHold || lockedOrder) return;
     pushHistory();
     const cur = G.active.piece;
     if (G.hold == null) {
@@ -181,10 +307,46 @@
     render();
   }
 
+  // T-spin種別＋消去ライン数 → 表示ラベル
+  function clearLabel(spin, lines) {
+    const nm = ["", "シングル", "ダブル", "トリプル", "テトリス"][lines] || "";
+    if (spin === "full") {
+      return "T-Spin" + (lines ? " " + nm : "");
+    }
+    if (spin === "mini") {
+      return "T-Spin Mini" + (lines ? " " + nm : "");
+    }
+    if (lines === 4) return "テトリス";
+    if (lines > 0) return nm; // 通常消去
+    return "";
+  }
+
   function lockPiece() {
     const a = G.active;
     pushHistory();
-    // テンプレ正誤判定
+    // T-spin 判定（固定前の盤面で。Tの隅セルはT自身が占めないため pre-lock で正しい）
+    let spin = "none";
+    if (a.piece === "T" && G.lastRotation) {
+      spin = E.tSpinType(G.grid, a, G.lastKick);
+    }
+    G._pendingSpin = spin;
+
+    // field型: 自由に組ませ、完成形と一致したら成功
+    if (G.mode === "template" && tplType() === "field") {
+      E.lock(G.grid, a.piece, a.rot, a.px, a.py);
+      G.stepIndex++; G.pieces++;
+      if (spin !== "none") { G.tspins++; }
+      G.lastClearLabel = clearLabel(spin, 0);
+      if (G.lastClearLabel) flashHint(G.lastClearLabel + "！", false);
+      G.active = null;
+      if (fieldMatches()) { onFieldComplete(); return; }
+      if (fieldOverflow()) flashHint("目標の形からはみ出しました。↩Undoでやり直すか、リセットを。", true);
+      spawnFromQueue();
+      render();
+      return;
+    }
+
+    // テンプレ正誤判定（手順型）
     if (G.mode === "template" && G.targetCells) {
       const got = E.cellKey(E.absCells(a.piece, a.rot, a.px, a.py));
       const want = E.cellKey(G.targetCells);
@@ -205,8 +367,14 @@
 
   function afterLockCommon(advanced) {
     G.pieces++;
-    const cl = E.clearLines(G.grid);
+    const spin = G._pendingSpin || "none";
+    // 盤面エディタ中（保存先指定あり）はライン消去しない＝組んだ形をそのまま保存できる
+    const cl = G.buildSlot ? { grid: G.grid, cleared: 0 } : E.clearLines(G.grid);
     G.grid = cl.grid;
+    // クリア種別ラベル（T-spin / 通常）
+    G.lastClearLabel = clearLabel(spin, cl.cleared);
+    if (spin !== "none") { G.tspins++; }
+    if (G.lastClearLabel) flashHint(G.lastClearLabel + "！", false);
     if (cl.cleared > 0) {
       G.lines += cl.cleared;
       const empty = G.grid.every(function (row) { return row.every(function (c) { return !c; }); });
@@ -231,13 +399,20 @@
       setTimeout(function () { resetTemplate(); }, 900);
     }
   }
+  function onFieldComplete() {
+    flashHint("完成！🎉 目標の形ができました。" + (settings.autoRepeat ? " 反復します…" : " リセットで再挑戦。"), false);
+    render();
+    if (settings.autoRepeat) setTimeout(function () { resetTemplate(); }, 900);
+  }
 
   // ===== モード初期化 =====
   function resetCommon() {
     G.grid = E.emptyGrid(); G.active = null; G.hold = null; G.canHold = true;
     G.bag = []; G.queue = []; G.history = [];
-    G.lines = 0; G.pieces = 0; G.pcs = 0; G.over = false;
+    G.lines = 0; G.pieces = 0; G.pcs = 0; G.tspins = 0; G.over = false;
+    G.lastRotation = false; G.lastKick = 0; G.lastClearLabel = ""; G._pendingSpin = "none";
     G.stepIndex = 0; G.mistake = false; G.targetCells = null;
+    G.buildSlot = null;
   }
   function startFree() {
     G.mode = "free"; resetCommon();
@@ -247,17 +422,34 @@
     render();
   }
   function startTemplate(id) {
-    const t = TPL.byId(id);
+    const t = findTemplate(id);
     if (!t) return;
+    if (t.info) { // 知識ノート（盤面なし）
+      G.mode = "free"; G.buildSlot = null;
+      flashHint("【" + t.name + "】" + t.desc + "（知識ノート：盤面データなし）", false);
+      return;
+    }
+    G.buildSlot = null;
+    if ((t.type === "field") && !t.field) { enterBuildMode(t); return; } // 未設定 → 盤面エディタ
     G.mode = "template"; G.template = t; resetCommon();
     spawnFromQueue();
     modeLabel.textContent = "テンプレ: " + t.name;
-    flashHint(t.desc, false);
+    flashHint(t.desc + ((t.type === "field") ? "　うすい色の目標形を組み上げよう（スピン・ホールドOK）。" : ""), false);
+    render();
+  }
+  // 未登録テンプレ枠を埋めるための盤面エディタ（フリー操作で組んで保存）
+  function enterBuildMode(t) {
+    G.mode = "free"; G.template = null; resetCommon();
+    G.buildSlot = t.id; // resetCommon の後に設定（resetCommonでクリアされるため）
+    ensureQueue(6); spawnFromQueue();
+    modeLabel.textContent = "盤面エディタ: " + t.name + "（未設定）";
+    flashHint("「" + t.name + "」は未登録です。フリー操作で形を組み、右の『現在の盤面を保存』でこの枠に登録できます。", false);
     render();
   }
   function resetTemplate() {
     if (G.mode !== "template" || !G.template) return;
     resetCommon();
+    if ((tplType() === "field") && !G.template.field) return;
     spawnFromQueue();
     render();
   }
@@ -307,6 +499,7 @@
     statLines.textContent = G.lines;
     statPieces.textContent = G.pieces;
     statPc.textContent = G.pcs;
+    if (statTspin) statTspin.textContent = G.tspins;
 
     // 盤面背景
     bctx.fillStyle = "#0d1117";
@@ -320,7 +513,7 @@
       }
     }
 
-    // テンプレ目標(ヒント)
+    // 手順型テンプレの目標(ヒント): 次の1手の置き場所
     if (settings.showHint && G.mode === "template" && G.targetCells) {
       bctx.save();
       bctx.strokeStyle = "rgba(255,255,80,0.95)";
@@ -331,6 +524,21 @@
         if (r < 0) continue;
         bctx.fillRect(c * CELL + 2, r * CELL + 2, CELL - 4, CELL - 4);
         bctx.strokeRect(c * CELL + 2, r * CELL + 2, CELL - 4, CELL - 4);
+      }
+      bctx.restore();
+    }
+    // 完成形テンプレ(field型)の目標: 全体のうすい色オーバーレイ
+    if (settings.showHint && G.mode === "template" && tplType() === "field" && G.template && G.template.field) {
+      const f = G.template.field;
+      bctx.save();
+      bctx.globalAlpha = 0.28;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (f[r] && f[r][c] && !G.grid[r][c]) {
+            bctx.fillStyle = (typeof f[r][c] === "string") ? f[r][c] : "#8aa0b6";
+            bctx.fillRect(c * CELL + 4, r * CELL + 4, CELL - 8, CELL - 8);
+          }
+        }
       }
       bctx.restore();
     }
@@ -373,11 +581,16 @@
   }
 
   function previewQueue() {
-    if (G.mode === "template") {
+    if (G.mode === "template" && tplType() === "steps") {
       const out = [];
       for (let i = G.stepIndex; i < Math.min(G.stepIndex + 5, G.template.steps.length); i++) {
         out.push(G.template.steps[i].piece);
       }
+      return out;
+    }
+    if (G.mode === "template" && G.template && G.template.queue) {
+      const q = G.template.queue, out = [];
+      for (let i = G.stepIndex; i < Math.min(G.stepIndex + 5, q.length); i++) out.push(q[i]);
       return out;
     }
     return G.queue.slice(0, 5);
@@ -477,15 +690,8 @@
     $("btn-reset").addEventListener("click", doReset);
     $("btn-undo").addEventListener("click", undo);
 
-    // テンプレ一覧
-    const sel = $("tpl-list");
-    TPL.list.forEach(function (t) {
-      const b = document.createElement("button");
-      b.className = "tpl-btn";
-      b.innerHTML = "<span class='tpl-cat'>" + t.category + "</span><span class='tpl-name'>" + t.name + "</span>";
-      b.addEventListener("click", function () { startTemplate(t.id); });
-      sel.appendChild(b);
-    });
+    // テンプレ一覧（手順型 built-in + カタログ + カスタム）
+    buildMenu();
 
     // 設定トグル
     bindToggle("set-ghost", "ghost");
@@ -498,8 +704,84 @@
       $("verify-out").innerHTML = verifyAll();
     });
 
+    // 盤面保存 / インポート・エクスポート
+    $("btn-save").addEventListener("click", function () { saveCurrentTo(G.buildSlot); });
+    $("btn-savenew").addEventListener("click", saveAsNew);
+    $("btn-export").addEventListener("click", function () {
+      $("io-text").value = JSON.stringify(userStore);
+      flashHint("エクスポート: 下のテキストをコピーして保存してください。", false);
+    });
+    $("btn-import").addEventListener("click", function () {
+      const txt = $("io-text").value.trim();
+      if (!txt) { flashHint("インポートするJSONを貼り付けてください。", true); return; }
+      try {
+        const obj = JSON.parse(txt);
+        let n = 0;
+        Object.keys(obj).forEach(function (k) { userStore[k] = obj[k]; n++; });
+        saveUserStore(); buildMenu();
+        flashHint(n + "件のテンプレを取り込みました。", false);
+      } catch (e) { flashHint("JSONの解析に失敗しました。", true); }
+    });
+
     // タッチ操作
     bindTouch();
+  }
+
+  // テンプレ・メニュー（折りたたみ見出し付き）
+  function buildMenu() {
+    const root = $("tpl-list");
+    root.innerHTML = "";
+
+    function section(title, entries, render1) {
+      if (!entries.length) return;
+      const det = document.createElement("details");
+      det.className = "tpl-sec";
+      const sum = document.createElement("summary");
+      sum.textContent = title + " (" + entries.length + ")";
+      det.appendChild(sum);
+      entries.forEach(function (t) { det.appendChild(render1(t)); });
+      root.appendChild(det);
+    }
+    function btn(label, sub, cls, onClick, onDel) {
+      const wrap = document.createElement("div");
+      wrap.className = "tpl-row";
+      const b = document.createElement("button");
+      b.className = "tpl-btn " + (cls || "");
+      b.innerHTML = "<span class='tpl-name'>" + label + "</span>" + (sub ? "<span class='tpl-sub'>" + sub + "</span>" : "");
+      b.addEventListener("click", onClick);
+      wrap.appendChild(b);
+      if (onDel) {
+        const d = document.createElement("button");
+        d.className = "tpl-del"; d.textContent = "✕"; d.title = "削除";
+        d.addEventListener("click", onDel);
+        wrap.appendChild(d);
+      }
+      return wrap;
+    }
+
+    // 1) 手順型（検証済みドリル）
+    section("手順型ドリル（ヒント付き）", TPL.list, function (t) {
+      return btn(t.name, t.category, "ok", function () { startTemplate(t.id); });
+    });
+
+    // 2) カタログ（ユーザー指定の名前付きセットアップ）をグループ別に
+    CAT.groups().forEach(function (gname) {
+      const entries = CAT.list.filter(function (t) { return t.group === gname; });
+      section(gname, entries, function (t) {
+        const set = fieldSet(t.id);
+        const sub = t.info ? "知識ノート" : (set ? "✓ 練習可" : "未設定→組んで保存");
+        const cls = t.info ? "info" : (set ? "ok" : "unset");
+        return btn(t.name, sub, cls, function () { startTemplate(t.id); });
+      });
+    });
+
+    // 3) カスタム（自作保存）
+    const cust = customIds().map(function (id) { return findTemplate(id); }).filter(Boolean);
+    section("カスタム（自作）", cust, function (t) {
+      return btn(t.name, "✓ 練習可", "ok",
+        function () { startTemplate(t.id); },
+        function (e) { e.stopPropagation(); deleteUserTemplate(t.id); });
+    });
   }
   function bindToggle(id, key) {
     const el = $(id);

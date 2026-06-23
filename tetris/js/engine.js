@@ -179,19 +179,48 @@ window.TT = (function () {
     return { grid: ng.concat(kept), cleared: rows.length, rows: rows };
   }
 
-  /* SRS 回転。dir: +1=CW, -1=CCW。成功時 {rot,px,py}、失敗時 null。 */
+  /* SRS 回転。dir: +1=CW, -1=CCW。成功時 {rot,px,py,kick}、失敗時 null。
+     kick は採用した壁蹴りオフセットの index（0=蹴りなし, 4=最遠の蹴り）。 */
   function rotate(grid, st, dir) {
     const from = st.rot;
     const to = (from + (dir > 0 ? 1 : 3)) % 4;
-    if (st.piece === "O") return { rot: to, px: st.px, py: st.py };
+    if (st.piece === "O") return { rot: to, px: st.px, py: st.py, kick: 0 };
     const table = (st.piece === "I") ? KICKS_I : KICKS_JLSTZ;
     const kicks = table[String(from) + String(to)];
     for (let i = 0; i < kicks.length; i++) {
       const dc = kicks[i][0], dr = kicks[i][1];
       const npx = st.px + dc, npy = st.py + dr;
-      if (!collide(grid, st.piece, to, npx, npy)) return { rot: to, px: npx, py: npy };
+      if (!collide(grid, st.piece, to, npx, npy)) return { rot: to, px: npx, py: npy, kick: i };
     }
     return null;
+  }
+
+  /* T-spin 判定（ガイドライン 3-corner ルール）。
+     直前の操作が回転であること（lastRotation）は呼び出し側が保証する。
+     返り値: 'none' | 'mini' | 'full'。
+     kickIndex===4（最遠の蹴り=TSTキック）なら mini を full に格上げ。 */
+  function tSpinType(grid, st, kickIndex) {
+    if (st.piece !== "T") return "none";
+    const cr = st.py + 1, cc = st.px + 1; // T の中心セル（ローカル(1,1)）の盤面座標
+    function filled(r, c) {
+      if (c < 0 || c >= COLS || r >= ROWS) return true; // 壁・床は埋まり扱い
+      if (r < 0) return false;
+      return !!grid[r][c];
+    }
+    const tl = filled(cr - 1, cc - 1), tr = filled(cr - 1, cc + 1);
+    const bl = filled(cr + 1, cc - 1), br = filled(cr + 1, cc + 1);
+    const corners = (tl ? 1 : 0) + (tr ? 1 : 0) + (bl ? 1 : 0) + (br ? 1 : 0);
+    if (corners < 3) return "none";
+    // 凸側（pointing side）の2隅
+    let front;
+    if (st.rot === 0) front = [tl, tr];
+    else if (st.rot === 1) front = [tr, br];
+    else if (st.rot === 2) front = [bl, br];
+    else front = [tl, bl];
+    const filledFront = (front[0] ? 1 : 0) + (front[1] ? 1 : 0);
+    if (filledFront === 2) return "full";
+    if (kickIndex === 4) return "full"; // TSTキック等での格上げ
+    return "mini";
   }
 
   /* 7-bag: ORDER をシャッフルして返す */
@@ -217,6 +246,6 @@ window.TT = (function () {
     COLS: COLS, ROWS: ROWS, PIECES: PIECES, ORDER: ORDER,
     emptyGrid: emptyGrid, cloneGrid: cloneGrid, absCells: absCells,
     collide: collide, dropY: dropY, lock: lock, clearLines: clearLines,
-    rotate: rotate, newBag: newBag, spawnState: spawnState, cellKey: cellKey,
+    rotate: rotate, tSpinType: tSpinType, newBag: newBag, spawnState: spawnState, cellKey: cellKey,
   };
 })();

@@ -66,17 +66,42 @@ html, body {
 .ctrl-btn.primary { background: #1f6f3a; border-color: #2c8f4d; }
 .ctrl-btn.primary:hover { background: #258044; }
 
-.tpl-list { display: flex; flex-direction: column; gap: 6px; }
+.tpl-list { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow-y: auto; }
+.tpl-sec { border: 1px solid var(--line); border-radius: 8px; background: #12161e; }
+.tpl-sec > summary {
+  cursor: pointer; padding: 7px 10px; font-size: 12px; color: var(--accent);
+  font-weight: 700; list-style: none; user-select: none;
+}
+.tpl-sec > summary::-webkit-details-marker { display: none; }
+.tpl-sec > summary::before { content: "▸ "; }
+.tpl-sec[open] > summary::before { content: "▾ "; }
+.tpl-sec[open] { padding-bottom: 6px; }
+.tpl-row { display: flex; gap: 4px; padding: 2px 6px; }
 .tpl-btn {
-  text-align: left; background: var(--panel2); border: 1px solid var(--line);
-  border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--text);
+  flex: 1; text-align: left; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 9px; cursor: pointer; color: var(--text);
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
 }
 .tpl-btn:hover { background: #283141; border-color: var(--accent); }
-.tpl-cat {
-  display: inline-block; font-size: 10px; color: #0b0e14; background: var(--accent);
-  padding: 1px 6px; border-radius: 10px; margin-right: 6px; font-weight: 700;
-}
+.tpl-btn.unset { opacity: .8; border-style: dashed; }
+.tpl-btn.info { background: #1a1626; border-color: #4a3a6a; }
+.tpl-btn.ok { border-left: 3px solid var(--accent2); }
 .tpl-name { font-size: 13px; }
+.tpl-sub { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.tpl-del {
+  background: #2a1820; color: #ff9fb0; border: 1px solid var(--line);
+  border-radius: 8px; padding: 0 8px; cursor: pointer; font-size: 12px;
+}
+.tpl-del:hover { background: #3a2028; }
+
+.note { font-size: 11px; color: var(--muted); margin: 6px 0; line-height: 1.5; }
+.io-text {
+  width: 100%; height: 56px; resize: vertical; box-sizing: border-box;
+  background: #0d1117; color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; font-size: 11px; padding: 6px; font-family: ui-monospace, monospace;
+}
+.io-row { display: flex; gap: 6px; margin-top: 6px; }
+.ctrl-btn.small { margin: 0; padding: 7px 8px; font-size: 12px; }
 
 .toggle { display: block; font-size: 13px; padding: 5px 0; cursor: pointer; color: var(--text); }
 .toggle input { margin-right: 8px; transform: translateY(1px); }
