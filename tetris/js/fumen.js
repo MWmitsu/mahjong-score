@@ -244,5 +244,52 @@ window.TT_FUMEN = (function () {
     return { field: field, pages: pages.length };
   }
 
-  return { decodePages: decodePages, toTargetField: toTargetField, extract: extract, FF: FF };
+  // FF → 本ツール盤面(20x10, 行0=上, 色|null)
+  function ffToBoard(ff) {
+    const b = [];
+    for (let r = 0; r < 20; r++) { const row = []; for (let c = 0; c < 10; c++) row.push(null); b.push(row); }
+    for (let y = 0; y < 20; y++) for (let x = 0; x < 10; x++) { const v = ff.getAt(x, y); if (v) b[19 - y][x] = valueToColor(v); }
+    return b;
+  }
+  // ミノ操作 → 本ツール盤面セル [[r,c]...]（盤外/20段超は除外）
+  function opCells(op) {
+    const blocks = getBlocks(op.type, op.rotation);
+    const out = [];
+    for (let i = 0; i < blocks.length; i++) {
+      const fx = op.x + blocks[i][0], fy = op.y + blocks[i][1];
+      const r = 19 - fy, c = fx;
+      if (r >= 0 && r < 20 && c >= 0 && c < 10) out.push([r, c]);
+    }
+    return out;
+  }
+
+  // ---- アプリ用: 複数ページ → 手順型ステップ列に変換 ----
+  // 各ステップ: { piece:'T', cells:[[r,c]..], ctx:20x10(色|null=設置前の盤面) }
+  // ctx はテト譜の各ページ盤面そのもの（途中消去があってもテト譜準拠で正しく追従）。
+  function toSteps(str) {
+    let pages;
+    try { pages = decodePages(str); }
+    catch (e) { return { error: e.message || "デコードに失敗しました" }; }
+    const steps = [];
+    let lastLockPage = null;
+    for (let i = 0; i < pages.length; i++) {
+      const pg = pages[i];
+      if (pg.lock && pg.op && isMino(pg.op.type)) {
+        const cells = opCells(pg.op);
+        if (cells.length !== 4) return { error: "盤面が20段を超える配置があり手順化できません" };
+        steps.push({ piece: PIECE_LETTER[pg.op.type], cells: cells, ctx: ffToBoard(pg.field) });
+        lastLockPage = pg;
+      }
+    }
+    if (!steps.length) return { error: "ロックされたミノ手順が見つかりません（完成形のみのテト譜かも）" };
+    // 最終形 = 最後のロックページ盤面 + そのミノ
+    const ff = lastLockPage.field.copy();
+    ff.fill(lastLockPage.op.type, lastLockPage.op.rotation, lastLockPage.op.x, lastLockPage.op.y);
+    return { steps: steps, finalField: ffToBoard(ff), pages: pages.length };
+  }
+
+  return {
+    decodePages: decodePages, toTargetField: toTargetField, toSteps: toSteps,
+    extract: extract, FF: FF, ffToBoard: ffToBoard, opCells: opCells,
+  };
 })();

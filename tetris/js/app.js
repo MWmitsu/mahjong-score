@@ -79,21 +79,23 @@
   // id から実体テンプレを取得（手順型built-in / カタログ+保存 / カスタム）
   function findTemplate(id) {
     const s = TPL.byId(id);
-    if (s) return s; // 手順型 built-in（type未指定→steps扱い）
+    if (s) return s; // col手順型 built-in（type未指定→steps扱い）
     const c = CAT.byId(id);
     if (c) {
       const u = userStore[id] || {};
+      if (u.fsteps) return Object.assign({}, c, { type: "fsteps", fsteps: u.fsteps, finalField: u.finalField });
       return Object.assign({}, c, { type: "field", field: u.field || c.field || null, queue: u.queue || c.queue || null });
     }
     const u = userStore[id];
     if (u && u.custom) {
+      if (u.fsteps) return { id: id, name: u.name || id, group: "カスタム", desc: u.desc || "", type: "fsteps", fsteps: u.fsteps, finalField: u.finalField };
       return { id: id, name: u.name || id, group: "カスタム", desc: u.desc || "", type: "field", field: u.field || null, queue: u.queue || null };
     }
     return null;
   }
   function fieldSet(id) {
     const u = userStore[id];
-    if (u && u.field) return true;
+    if (u && (u.field || u.fsteps)) return true;
     const c = CAT.byId(id);
     return !!(c && c.field);
   }
@@ -133,27 +135,42 @@
     delete userStore[id]; saveUserStore(); buildMenu();
     flashHint("削除しました。", false);
   }
-  // テト譜(fumen) から完成形を取り込んで登録
-  function importFumen() {
+  // テト譜(fumen) から完成形(field) を取り込んで登録
+  function importFumen() { importFumenInner("field"); }
+  // テト譜(fumen) から手順(1手ずつ)を取り込んで登録
+  function importFumenSteps() { importFumenInner("fsteps"); }
+  function importFumenInner(kind) {
     const str = ($("fumen-text").value || "").trim();
     if (!str) { flashHint("テト譜コード（v115@…）を貼り付けてください。", true); return; }
     if (!window.TT_FUMEN) { flashHint("fumenデコーダが読み込まれていません。", true); return; }
-    const res = window.TT_FUMEN.toTargetField(str);
-    if (res.error) { flashHint("テト譜の取込に失敗: " + res.error, true); return; }
+    let payload, pages;
+    if (kind === "fsteps") {
+      const res = window.TT_FUMEN.toSteps(str);
+      if (res.error) { flashHint("手順の取込に失敗: " + res.error, true); return; }
+      payload = { fsteps: res.steps, finalField: res.finalField }; pages = res.pages;
+      if (res.steps.length < 2) flashHint("注意: 手数が少ないテト譜です（完成形のみかも）。", false);
+    } else {
+      const res = window.TT_FUMEN.toTargetField(str);
+      if (res.error) { flashHint("テト譜の取込に失敗: " + res.error, true); return; }
+      payload = { field: res.field }; pages = res.pages;
+    }
+    const label = (kind === "fsteps") ? "手順" : "完成形";
     if (G.buildSlot) {
       const slot = G.buildSlot;
-      userStore[slot] = Object.assign({}, userStore[slot], { field: res.field });
+      // 同じ枠の旧データ種別が混ざらないよう field/fsteps を入れ替え
+      const base = Object.assign({}, userStore[slot]); delete base.field; delete base.fsteps; delete base.finalField;
+      userStore[slot] = Object.assign(base, payload);
       saveUserStore(); buildMenu();
       const t = findTemplate(slot);
-      flashHint("テト譜を「" + (t ? t.name : slot) + "」に登録しました（" + res.pages + "ページ）。", false);
+      flashHint("テト譜(" + label + ")を「" + (t ? t.name : slot) + "」に登録（" + pages + "ページ）。", false);
       startTemplate(slot);
     } else {
-      const name = window.prompt("テンプレ名を入力", "テト譜テンプレ");
+      const name = window.prompt("テンプレ名を入力", "テト譜" + label);
       if (!name) return;
       const id = "cust" + Date.now();
-      userStore[id] = { custom: true, name: name, desc: "テト譜取込", field: res.field };
+      userStore[id] = Object.assign({ custom: true, name: name, desc: "テト譜取込(" + label + ")" }, payload);
       saveUserStore(); buildMenu();
-      flashHint("テト譜から「" + name + "」を登録しました（" + res.pages + "ページ）。", false);
+      flashHint("テト譜から「" + name + "」を登録（" + label + "・" + pages + "ページ）。", false);
       startTemplate(id);
     }
   }
@@ -201,10 +218,12 @@
     render();
   }
 
-  // テンプレ種別: 'steps'(手順型・per-step) / 'field'(完成形ターゲット型)
+  // テンプレ種別: 'steps'(col手順) / 'field'(完成形) / 'fsteps'(テト譜由来の1手ずつ手順)
   function tplType() {
     if (!G.template) return null;
-    return G.template.type === "field" ? "field" : "steps";
+    if (G.template.type === "field") return "field";
+    if (G.template.type === "fsteps") return "fsteps";
+    return "steps";
   }
 
   // ===== テンプレ: col(最左列)→px 変換 & 目標算出 =====
@@ -223,11 +242,29 @@
     G.targetCells = null; G.targetPlacement = null;
     if (G.mode !== "template" || !G.template) return;
     if (tplType() === "field") return; // field型は computeTarget 不要（盤面全体が目標）
+    if (tplType() === "fsteps") {
+      const fs = G.template.fsteps;
+      if (G.stepIndex < fs.length) G.targetCells = fs[G.stepIndex].cells;
+      return;
+    }
     if (G.stepIndex >= G.template.steps.length) return;
     const step = G.template.steps[G.stepIndex];
     const pl = stepPlacement(G.grid, step);
     G.targetPlacement = pl;
     G.targetCells = E.absCells(step.piece, step.rot, pl.px, pl.py);
+  }
+
+  // fsteps: ステップ i に入る（盤面はテト譜準拠でセットし、その手のミノを出現）
+  function setFStep(i) {
+    const fs = G.template.fsteps;
+    G.stepIndex = i;
+    G.grid = fs[i].ctx.map(function (row) { return row.slice(); });
+    G.targetCells = fs[i].cells;
+    G.mistake = false;
+    const st = E.spawnState(fs[i].piece);
+    if (E.collide(G.grid, st.piece, st.rot, st.px, st.py)) { G.over = true; G.active = null; render(); return; }
+    G.active = st; G.canHold = true; G.lastRotation = false;
+    render();
   }
 
   // field型: 現在の盤面が目標の完成形と一致したか（消去前で比較）
@@ -313,8 +350,9 @@
     lockPiece();
   }
   function holdPiece() {
-    // 手順型/ミノ順固定のfield型ではホールド無効（決め打ちのため）
-    const lockedOrder = (G.mode === "template") && (tplType() === "steps" || (G.template && G.template.queue));
+    // 手順型(steps/fsteps)・ミノ順固定field型ではホールド無効（決め打ちのため）
+    const lockedOrder = (G.mode === "template") &&
+      (tplType() === "steps" || tplType() === "fsteps" || (G.template && G.template.queue));
     if (!G.active || G.over || !G.canHold || lockedOrder) return;
     pushHistory();
     const cur = G.active.piece;
@@ -354,6 +392,33 @@
       spin = E.tSpinType(G.grid, a, G.lastKick);
     }
     G._pendingSpin = spin;
+
+    // fsteps型: 1手ずつ目標位置に置く（盤面はテト譜準拠で進む）
+    if (G.mode === "template" && tplType() === "fsteps") {
+      const got = E.cellKey(E.absCells(a.piece, a.rot, a.px, a.py));
+      const want = E.cellKey(G.targetCells);
+      if (got !== want) {
+        G.history.pop(); // この試行のスナップショットは破棄
+        G.mistake = true;
+        flashHint("手順と違う位置です。回転/移動/スピンで黄色の目標に合わせて置こう。", true);
+        setFStep(G.stepIndex); // 盤面と現ミノをリセットして再挑戦
+        return;
+      }
+      G.mistake = false;
+      G.pieces++;
+      if (spin !== "none") G.tspins++;
+      G.lastClearLabel = clearLabel(spin, 0);
+      if (G.lastClearLabel) flashHint(G.lastClearLabel + "！", false);
+      const fs = G.template.fsteps;
+      if (G.stepIndex + 1 >= fs.length) {
+        G.grid = G.template.finalField.map(function (row) { return row.slice(); });
+        G.active = null; G.targetCells = null;
+        onTemplateComplete();
+        return;
+      }
+      setFStep(G.stepIndex + 1);
+      return;
+    }
 
     // field型: 自由に組ませ、完成形と一致したら成功
     if (G.mode === "template" && tplType() === "field") {
@@ -456,6 +521,12 @@
     G.buildSlot = null;
     if ((t.type === "field") && !t.field) { enterBuildMode(t); return; } // 未設定 → 盤面エディタ
     G.mode = "template"; G.template = t; resetCommon();
+    if (t.type === "fsteps") {
+      modeLabel.textContent = "手順: " + t.name;
+      flashHint(t.desc + "　黄色の目標位置に1手ずつ置こう（スピン/ tuck もOK・盤面はテト譜準拠）。", false);
+      setFStep(0);
+      return;
+    }
     spawnFromQueue();
     modeLabel.textContent = "テンプレ: " + t.name;
     flashHint(t.desc + ((t.type === "field") ? "　うすい色の目標形を組み上げよう（スピン・ホールドOK）。" : ""), false);
@@ -473,6 +544,7 @@
   function resetTemplate() {
     if (G.mode !== "template" || !G.template) return;
     resetCommon();
+    if (tplType() === "fsteps") { setFStep(0); return; }
     if ((tplType() === "field") && !G.template.field) return;
     spawnFromQueue();
     render();
@@ -612,6 +684,11 @@
       }
       return out;
     }
+    if (G.mode === "template" && tplType() === "fsteps") {
+      const fs = G.template.fsteps, out = [];
+      for (let i = G.stepIndex; i < Math.min(G.stepIndex + 5, fs.length); i++) out.push(fs[i].piece);
+      return out;
+    }
     if (G.mode === "template" && G.template && G.template.queue) {
       const q = G.template.queue, out = [];
       for (let i = G.stepIndex; i < Math.min(G.stepIndex + 5, q.length); i++) out.push(q[i]);
@@ -732,6 +809,7 @@
     $("btn-save").addEventListener("click", function () { saveCurrentTo(G.buildSlot); });
     $("btn-savenew").addEventListener("click", saveAsNew);
     $("btn-fumen").addEventListener("click", importFumen);
+    $("btn-fumen-steps").addEventListener("click", importFumenSteps);
     $("btn-export").addEventListener("click", function () {
       $("io-text").value = JSON.stringify(userStore);
       flashHint("エクスポート: 下のテキストをコピーして保存してください。", false);

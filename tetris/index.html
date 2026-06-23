@@ -74,8 +74,11 @@
 
         <div class="panel-title sub">テト譜(fumen)から登録</div>
         <textarea id="fumen-text" class="io-text" placeholder="v115@... を貼り付け"></textarea>
-        <button id="btn-fumen" class="ctrl-btn">テト譜から登録</button>
-        <p class="note">未設定枠を選んでから貼ると、その枠に登録。最終ページの形(完成形)を取り込みます。</p>
+        <div class="io-row">
+          <button id="btn-fumen" class="ctrl-btn small">完成形で登録</button>
+          <button id="btn-fumen-steps" class="ctrl-btn small">手順で登録</button>
+        </div>
+        <p class="note">未設定枠を選んでから貼ると、その枠に登録。<b>完成形</b>=最終形を組む練習／<b>手順</b>=複数ページから1手ずつヒント。</p>
 
         <div class="panel-title sub">JSONバックアップ</div>
         <textarea id="io-text" class="io-text" placeholder="ここにJSONを貼り付けてインポート / エクスポートで出力"></textarea>
