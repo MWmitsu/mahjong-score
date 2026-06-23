@@ -68,6 +68,23 @@
   // ===== テンプレ・レジストリ & 保存（localStorage） =====
   const LS_KEY = "tt_user_templates_v1";
   let userStore = loadUserStore();
+
+  // 初期データ（主要セットアップ）をカタログにマージ：field(検証済み完成形)と推奨テト譜
+  (function mergeCatalogData() {
+    const D = window.TT_CATALOG_DATA;
+    if (!D || !CAT) return;
+    Object.keys(D).forEach(function (id) {
+      const c = CAT.byId(id); if (!c) return;
+      const d = D[id];
+      if (d.field) c.field = d.field;       // 検証採用した完成形(スケルトン)
+      if (d.fumen) c.recFumen = d.fumen;     // 推奨テト譜コード
+      if (d.src) c.src = d.src;              // 出典名
+    });
+  })();
+  function recFumenOf(id) {
+    const D = window.TT_CATALOG_DATA;
+    return (D && D[id] && D[id].fumen) ? D[id].fumen : null;
+  }
   function loadUserStore() {
     try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}") || {}; }
     catch (e) { return {}; }
@@ -529,7 +546,8 @@
     }
     spawnFromQueue();
     modeLabel.textContent = "テンプレ: " + t.name;
-    flashHint(t.desc + ((t.type === "field") ? "　うすい色の目標形を組み上げよう（スピン・ホールドOK）。" : ""), false);
+    const srcNote = t.src ? "（出典: " + t.src + "）" : "";
+    flashHint(t.desc + ((t.type === "field") ? "　うすい色の目標形を組み上げよう（スピン・ホールドOK）。" + srcNote : ""), false);
     render();
   }
   // 未登録テンプレ枠を埋めるための盤面エディタ（フリー操作で組んで保存）
@@ -538,7 +556,14 @@
     G.buildSlot = t.id; // resetCommon の後に設定（resetCommonでクリアされるため）
     ensureQueue(6); spawnFromQueue();
     modeLabel.textContent = "盤面エディタ: " + t.name + "（未設定）";
-    flashHint("「" + t.name + "」は未登録です。フリー操作で形を組み、右の『現在の盤面を保存』でこの枠に登録できます。", false);
+    const rec = t.recFumen || recFumenOf(t.id);
+    if (rec && $("fumen-text")) {
+      $("fumen-text").value = rec;
+      flashHint("「" + t.name + "」の推奨テト譜を入力しました（出典: " + (t.src || "Opener DB") + "）。" +
+        "右の『手順で登録』または『完成形で登録』で取り込めます。", false);
+    } else {
+      flashHint("「" + t.name + "」は未登録です。フリーで形を組むか、テト譜を貼って『保存』してください。", false);
+    }
     render();
   }
   function resetTemplate() {
@@ -872,8 +897,11 @@
       const entries = CAT.list.filter(function (t) { return t.group === gname; });
       section(gname, entries, function (t) {
         const set = fieldSet(t.id);
-        const sub = t.info ? "知識ノート" : (set ? "✓ 練習可" : "未設定→組んで保存");
-        const cls = t.info ? "info" : (set ? "ok" : "unset");
+        let sub, cls;
+        if (t.info) { sub = "知識ノート"; cls = "info"; }
+        else if (set) { sub = "✓ 練習可"; cls = "ok"; }
+        else if (recFumenOf(t.id)) { sub = "推奨テト譜あり"; cls = "rec"; }
+        else { sub = "未設定→組んで保存"; cls = "unset"; }
         return btn(t.name, sub, cls, function () { startTemplate(t.id); });
       });
     });

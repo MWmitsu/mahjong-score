@@ -87,6 +87,8 @@ html, body {
 .tpl-btn.unset { opacity: .8; border-style: dashed; }
 .tpl-btn.info { background: #1a1626; border-color: #4a3a6a; }
 .tpl-btn.ok { border-left: 3px solid var(--accent2); }
+.tpl-btn.rec { border-left: 3px solid #e0a330; }
+.tpl-btn.rec .tpl-sub { color: #e0a330; }
 .tpl-name { font-size: 13px; }
 .tpl-sub { font-size: 10px; color: var(--muted); white-space: nowrap; }
 .tpl-del {
