@@ -195,6 +195,43 @@ window.TT = (function () {
     return null;
   }
 
+  /* 180°回転の壁蹴りテーブル（配列座標 [dc,dr], drは下方向が正）。
+     ぷよぷよテトリス2 は単発の180°回転を持つ。PPT2 内部の正確な180°
+     テーブルは公開資料が無いため、現行ガイドライン系（TETR.IO/SRS+ 等）で
+     広く使われる標準的な180°キックセットを採用（実用上のPPT2挙動に一致）。
+     遷移は 0<->2, 1<->3 の4通り。 */
+  const KICKS_180 = {
+    // JLSTZ
+    JLSTZ: {
+      "02": [[0, 0], [0, -1], [1, -1], [-1, -1], [1, 0], [-1, 0]],
+      "20": [[0, 0], [0, 1], [-1, 1], [1, 1], [-1, 0], [1, 0]],
+      "13": [[0, 0], [1, 0], [1, -2], [1, -1], [0, -2], [0, -1]],
+      "31": [[0, 0], [-1, 0], [-1, -2], [-1, -1], [0, -2], [0, -1]],
+    },
+    // I
+    I: {
+      "02": [[0, 0], [-1, 0], [-2, 0], [1, 0], [2, 0], [0, -1]],
+      "20": [[0, 0], [1, 0], [2, 0], [-1, 0], [-2, 0], [0, 1]],
+      "13": [[0, 0], [0, -1], [0, -2], [0, 1], [0, 2], [-1, 0]],
+      "31": [[0, 0], [0, -1], [0, -2], [0, 1], [0, 2], [1, 0]],
+    },
+  };
+
+  /* 180°回転。成功時 {rot,px,py,kick}、失敗時 null。 */
+  function rotate180(grid, st) {
+    const from = st.rot;
+    const to = (from + 2) % 4;
+    if (st.piece === "O") return { rot: to, px: st.px, py: st.py, kick: 0 };
+    const set = (st.piece === "I") ? KICKS_180.I : KICKS_180.JLSTZ;
+    const kicks = set[String(from) + String(to)];
+    for (let i = 0; i < kicks.length; i++) {
+      const dc = kicks[i][0], dr = kicks[i][1];
+      const npx = st.px + dc, npy = st.py + dr;
+      if (!collide(grid, st.piece, to, npx, npy)) return { rot: to, px: npx, py: npy, kick: i };
+    }
+    return null;
+  }
+
   /* T-spin 判定（ガイドライン 3-corner ルール）。
      直前の操作が回転であること（lastRotation）は呼び出し側が保証する。
      返り値: 'none' | 'mini' | 'full'。
@@ -246,6 +283,7 @@ window.TT = (function () {
     COLS: COLS, ROWS: ROWS, PIECES: PIECES, ORDER: ORDER,
     emptyGrid: emptyGrid, cloneGrid: cloneGrid, absCells: absCells,
     collide: collide, dropY: dropY, lock: lock, clearLines: clearLines,
-    rotate: rotate, tSpinType: tSpinType, newBag: newBag, spawnState: spawnState, cellKey: cellKey,
+    rotate: rotate, rotate180: rotate180, tSpinType: tSpinType,
+    newBag: newBag, spawnState: spawnState, cellKey: cellKey,
   };
 })();

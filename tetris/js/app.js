@@ -357,6 +357,15 @@
       render();
     }
   }
+  function tryRotate180() {
+    if (!G.active || G.over) return;
+    const res = E.rotate180(G.grid, G.active); // PPT2準拠の単発180°回転
+    if (res) {
+      G.active.rot = res.rot; G.active.px = res.px; G.active.py = res.py;
+      G.lastRotation = true; G.lastKick = res.kick;
+      render();
+    }
+  }
   function softDrop() { if (!tryMove(0, 1) && settings.gravity) {/*lock handled by gravity*/} }
   function hardDrop() {
     if (!G.active || G.over) return;
@@ -790,7 +799,7 @@
     else if (k === "ArrowDown") { e.preventDefault(); held.soft = { last: 0 }; tryMove(0, 1); }
     else if (k === "ArrowUp" || k === "x" || k === "X") { e.preventDefault(); tryRotate(1); }
     else if (k === "z" || k === "Z" || k === "Control") { e.preventDefault(); tryRotate(-1); }
-    else if (k === "a" || k === "A") { e.preventDefault(); tryRotate(1); tryRotate(1); } // 180
+    else if (k === "a" || k === "A") { e.preventDefault(); tryRotate180(); } // 単発180°(PPT2準拠)
     else if (k === " ") { e.preventDefault(); hardDrop(); }
     else if (k === "Shift" || k === "c" || k === "C") { e.preventDefault(); holdPiece(); }
     else if (k === "Backspace" || k === "u" || k === "U") { e.preventDefault(); undo(); }
@@ -927,6 +936,7 @@
       "t-down": function () { tryMove(0, 1); },
       "t-ccw": function () { tryRotate(-1); },
       "t-cw": function () { tryRotate(1); },
+      "t-180": tryRotate180,
       "t-drop": hardDrop,
       "t-hold": holdPiece,
       "t-undo": undo,

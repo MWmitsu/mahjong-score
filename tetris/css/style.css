@@ -151,4 +151,5 @@ html, body {
   }
   .touchpad button:active { background: var(--accent); color: #0b0e14; }
   .touchpad .wide { grid-column: span 3; }
+  .touchpad .wide2 { grid-column: span 2; }
 }
