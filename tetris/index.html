@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>テトリス練習ツール</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>テトリス練習ツール</h1>
+    <div class="mode-tag">モード: <span id="mode-label">フリー</span></div>
+  </header>
+
+  <main class="layout">
+    <!-- 左: ホールド + 操作 -->
+    <aside class="side left">
+      <div class="panel">
+        <div class="panel-title">ホールド</div>
+        <canvas id="hold" width="110" height="80"></canvas>
+      </div>
+      <div class="panel stats">
+        <div class="panel-title">スタッツ</div>
+        <div class="stat"><span>ライン</span><b id="stat-lines">0</b></div>
+        <div class="stat"><span>ミノ数</span><b id="stat-pieces">0</b></div>
+        <div class="stat"><span>T-Spin</span><b id="stat-tspin">0</b></div>
+        <div class="stat"><span>PC</span><b id="stat-pc">0</b></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">モード</div>
+        <button id="btn-free" class="ctrl-btn">フリー</button>
+        <button id="btn-dig" class="ctrl-btn">掘り(Dig)</button>
+        <button id="btn-reset" class="ctrl-btn primary">リセット (R)</button>
+        <button id="btn-undo" class="ctrl-btn">一手戻す ↩ (U)</button>
+      </div>
+    </aside>
+
+    <!-- 中央: 盤面 -->
+    <section class="center">
+      <canvas id="board" width="300" height="600"></canvas>
+      <div id="hint-text" class="hint">準備中…</div>
+      <!-- タッチ操作（スマホ用） -->
+      <div class="touchpad">
+        <button id="t-ccw">⟲</button>
+        <button id="t-left">←</button>
+        <button id="t-down">↓</button>
+        <button id="t-right">→</button>
+        <button id="t-cw">⟳</button>
+        <button id="t-180">180°</button>
+        <button id="t-drop" class="wide2">ドロップ</button>
+        <button id="t-hold">ホールド</button>
+        <button id="t-undo">↩戻す</button>
+      </div>
+    </section>
+
+    <!-- 右: ネクスト + テンプレ + 設定 -->
+    <aside class="side right">
+      <div class="panel">
+        <div class="panel-title">ネクスト</div>
+        <canvas id="next" width="110" height="320"></canvas>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">練習テンプレ</div>
+        <div id="tpl-list" class="tpl-list"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">テンプレ保存・共有</div>
+        <button id="btn-save" class="ctrl-btn primary">現在の盤面を保存</button>
+        <button id="btn-savenew" class="ctrl-btn">新規テンプレとして保存</button>
+        <p class="note">未設定テンプレを選ぶ→フリーで組む or テト譜貼付→保存、でその枠が練習可能に。</p>
+
+        <div class="panel-title sub">テト譜(fumen)から登録</div>
+        <textarea id="fumen-text" class="io-text" placeholder="v115@... を貼り付け"></textarea>
+        <div class="io-row">
+          <button id="btn-fumen" class="ctrl-btn small">完成形で登録</button>
+          <button id="btn-fumen-steps" class="ctrl-btn small">手順で登録</button>
+        </div>
+        <p class="note">未設定枠を選んでから貼ると、その枠に登録。<b>完成形</b>=最終形を組む練習／<b>手順</b>=複数ページから1手ずつヒント。</p>
+
+        <div class="panel-title sub">JSONバックアップ</div>
+        <textarea id="io-text" class="io-text" placeholder="ここにJSONを貼り付けてインポート / エクスポートで出力"></textarea>
+        <div class="io-row">
+          <button id="btn-export" class="ctrl-btn small">エクスポート</button>
+          <button id="btn-import" class="ctrl-btn small">インポート</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">設定</div>
+        <label class="toggle"><input type="checkbox" id="set-ghost"> ゴースト表示</label>
+        <label class="toggle"><input type="checkbox" id="set-hint"> ヒント(目標位置)</label>
+        <label class="toggle"><input type="checkbox" id="set-gravity"> 重力(自動落下)</label>
+        <label class="toggle"><input type="checkbox" id="set-repeat"> テンプレ自動反復</label>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">手順型ドリルの検証</div>
+        <button id="btn-verify" class="ctrl-btn">手順型ドリルを検証</button>
+        <div id="verify-out" class="verify-out"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="help">
+    <b>キー操作</b>: ← → 移動 ／ ↑ または X 右回転 ／ Z または Ctrl 左回転 ／ A 180°回転 ／
+    ↓ ソフトドロップ ／ Space ハードドロップ ／ Shift または C ホールド ／ U または ⌫ 一手戻す ／ R リセット<br />
+    <b>T-Spin</b> はスロットに回転で滑り込ませると自動判定（T-Spin / Mini / シングル〜トリプル）。
+    <b>完成形テンプレ</b>はうすい色の目標形を組み上げれば成功（スピン・ホールドOK）。
+  </footer>
+
+  <!-- ビルド不要・classic script（file:// でも動く） -->
+  <script src="js/engine.js"></script>
+  <script src="js/templates.js"></script>
+  <script src="js/catalog.js"></script>
+  <script src="js/catalog_data.js"></script>
+  <script src="js/fumen.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
