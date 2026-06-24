@@ -75,11 +75,13 @@ window.TT = (function () {
     O: {
       color: "#f4c430",
       spawnCol: 3,
+      // O-Spin対応（cambridge-modpack「SRS O-Spin」準拠）。回転で2x2が中心まわりに
+      // 移動し、標準SRS(3x3)の壁蹴りでO-spinが可能。state0はスポーン形(従来と同一)。
       states: [
-        [[0, 1], [0, 2], [1, 1], [1, 2]],
-        [[0, 1], [0, 2], [1, 1], [1, 2]],
-        [[0, 1], [0, 2], [1, 1], [1, 2]],
-        [[0, 1], [0, 2], [1, 1], [1, 2]],
+        [[0, 2], [0, 1], [1, 1], [1, 2]],
+        [[0, 1], [0, 0], [1, 0], [1, 1]],
+        [[1, 1], [1, 0], [2, 0], [2, 1]],
+        [[1, 2], [1, 1], [2, 1], [2, 2]],
       ],
     },
   };
@@ -184,7 +186,7 @@ window.TT = (function () {
   function rotate(grid, st, dir) {
     const from = st.rot;
     const to = (from + (dir > 0 ? 1 : 3)) % 4;
-    if (st.piece === "O") return { rot: to, px: st.px, py: st.py, kick: 0 };
+    // O も標準SRS(3x3)の壁蹴りを使う（O-Spin対応）。状態ごとに2x2が移動する。
     const table = (st.piece === "I") ? KICKS_I : KICKS_JLSTZ;
     const kicks = table[String(from) + String(to)];
     for (let i = 0; i < kicks.length; i++) {
@@ -221,7 +223,7 @@ window.TT = (function () {
   function rotate180(grid, st) {
     const from = st.rot;
     const to = (from + 2) % 4;
-    if (st.piece === "O") return { rot: to, px: st.px, py: st.py, kick: 0 };
+    // O も180°キックを使う（O-Spin対応）
     const set = (st.piece === "I") ? KICKS_180.I : KICKS_180.JLSTZ;
     const kicks = set[String(from) + String(to)];
     for (let i = 0; i < kicks.length; i++) {
