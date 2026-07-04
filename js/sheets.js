@@ -20,7 +20,22 @@ MJ.sheets = (function () {
         manualBusted: manualBusted ? manualBusted[pid] : undefined,
       };
     });
-    return D.calculate(rule, inputs);
+    const results = D.calculate(rule, inputs);
+    applyTopRemainder(results);
+    return results;
+  }
+
+  /* トップ（1位）のポイントを「他家の合計の符号反転」にして、卓のポイント合計を必ず0にする。
+     箱下やオカのあまりはトップが負う。全員0点以上でゼロサムのときは値は変わらない。 */
+  function applyTopRemainder(results) {
+    if (!results || results.length < 2) return;
+    let top = null;
+    results.forEach(function (r) { if (r.rank === 1 && !top) top = r; });
+    if (!top) return;
+    let others = 0;
+    results.forEach(function (r) { if (r !== top) others += r.totalPointWithoutChip; });
+    top.totalPointWithoutChip = -others;
+    top.totalPointWithChip = -others; // この画面では半荘単位のチップは無いため両者は一致
   }
 
   /* 列合計・チップ・精算（円）。

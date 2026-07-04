@@ -68,11 +68,20 @@ MJ.screens.sheet = function (screen) {
 
     const hanchans = session.hanchans || [];
     if (hanchans.length === 0) {
-      const tr = el("tr", {}, [el("td", { class: "muted", colspan: String(pids.length + 1), style: "text-align:center;padding:18px", text: "まだ半荘がありません。下の「＋ 半荘を追加」から記録してください。" })]);
+      const tr = el("tr", {}, [el("td", { class: "muted", colspan: String(pids.length + 1), style: "text-align:center;padding:18px", text: "まだ半荘がありません。下の「＋ 半荘を入力」から記録してください。" })]);
       table.appendChild(tr);
     } else {
       hanchans.forEach(function (h, i) {
-        const tr = el("tr", { class: "hanchan-row", onclick: function () { openHanchanEditor(h); } }, [el("td", { class: "idx", text: String(i + 1) + (h.shugi ? "👑" : "") })]);
+        // 粗点の合計が想定（人数×初期持ち点）と一致しない行はエラー表示
+        const hp = (h.playerIds && h.playerIds.length) ? h.playerIds : pids.filter(function (pid) { return h.raws && h.raws[pid] != null; });
+        let rawErr = false;
+        if (rule && rule.initialScore) {
+          const rs = hp.reduce(function (a, pid) { const v = h.raws ? h.raws[pid] : null; return a + (typeof v === "number" && !isNaN(v) ? v : 0); }, 0);
+          rawErr = (rs !== hp.length * rule.initialScore);
+        }
+        const idxCell = el("td", { class: "idx", text: String(i + 1) + (h.shugi ? "👑" : "") });
+        if (rawErr) idxCell.appendChild(el("span", { class: "row-err", title: "粗点の合計が想定（人数×持ち点）と一致しません。入力を確認してください。", text: "！" }));
+        const tr = el("tr", { class: "hanchan-row" + (rawErr ? " has-err" : ""), onclick: function () { openHanchanEditor(h); } }, [idxCell]);
         pids.forEach(function (pid) {
           const r = SH.resultOf(h, pid);
           if (!r) { tr.appendChild(el("td", { class: "num rest-cell", text: "—" })); return; } // 抜け番
@@ -97,16 +106,46 @@ MJ.screens.sheet = function (screen) {
       table.appendChild(shugiRow);
     }
 
-    // チップ（入力）
-    const chipRow = el("tr", { class: "chip-row" }, [el("td", { class: "idx", text: "チップ" })]);
+    // チップ（入力）— 最後の1人ぶんを自動計算し、合計が0でなければエラー表示
+    const chipInputs = {};
+    const chipIdxCell = el("td", { class: "idx", text: "チップ" });
+    const chipRow = el("tr", { class: "chip-row" }, [chipIdxCell]);
+    function chipTotal() { return pids.reduce(function (a, pid) { const n = parseInt(chipInputs[pid] ? chipInputs[pid].value : "", 10); return a + (isNaN(n) ? 0 : n); }, 0); }
+    function updateChipError() {
+      const bad = chipTotal() !== 0;
+      const badge = chipIdxCell.querySelector(".row-err");
+      if (bad && !badge) chipIdxCell.appendChild(el("span", { class: "row-err", title: "チップの合計が0になっていません（受け取り＋／支払い−で合計0に）", text: "！" }));
+      else if (!bad && badge) badge.parentNode.removeChild(badge);
+    }
+    function autoFillChip(editedPid) {
+      const empties = pids.filter(function (pid) { return chipInputs[pid] && chipInputs[pid].value === ""; });
+      if (empties.length !== 1) return;
+      const target = empties[0];
+      if (target === editedPid) return;
+      let sum = 0;
+      pids.forEach(function (pid) { if (pid !== target) { const n = parseInt(chipInputs[pid].value, 10); sum += isNaN(n) ? 0 : n; } });
+      const val = -sum;
+      chipInputs[target].value = String(val);
+      session.chips = session.chips || {};
+      session.chips[target] = val;
+    }
     pids.forEach(function (pid) {
       const inp = el("input", { type: "number", inputmode: "numeric", class: "chip-input", placeholder: "0" });
       inp.value = (session.chips && session.chips[pid]) ? session.chips[pid] : "";
-      inp.addEventListener("input", function () { session.chips = session.chips || {}; session.chips[pid] = parseInt(inp.value, 10) || 0; S.upsert("sessions", session); updateSettle(); });
-      const td = el("td", {}, [inp]);
-      chipRow.appendChild(td);
+      chipInputs[pid] = inp;
+      inp.addEventListener("input", function () {
+        session.chips = session.chips || {};
+        const n = parseInt(inp.value, 10);
+        session.chips[pid] = (inp.value === "" || isNaN(n)) ? 0 : n;
+        autoFillChip(pid);
+        S.upsert("sessions", session);
+        updateSettle();
+        updateChipError();
+      });
+      chipRow.appendChild(el("td", {}, [inp]));
     });
     table.appendChild(chipRow);
+    updateChipError();
 
     // 精算（円）
     settleCells = {};
@@ -189,6 +228,21 @@ MJ.screens.sheet = function (screen) {
     const scoreBox = el("div", {});
     const shugiHost = el("div", {});
     const shugiState = { read: function () { return null; } };
+    const rawInputs = {};
+
+    // 残り1人ぶんの粗点を自動計算（合計＝人数×初期持ち点）。編集中の欄は補完しない。
+    function autoFillLast(editedPid) {
+      if (!rule || !rule.initialScore) return;
+      const empties = participants.filter(function (pid) { return raws[pid] == null || isNaN(raws[pid]); });
+      if (empties.length !== 1) return;
+      const target = empties[0];
+      if (target === editedPid) return;
+      let sum = 0;
+      participants.forEach(function (pid) { if (pid !== target) sum += raws[pid]; });
+      const val = participants.length * rule.initialScore - sum;
+      raws[target] = val;
+      if (rawInputs[target]) rawInputs[target].value = String(val);
+    }
 
     // 役満祝儀（任意）— 全種類「各自に直接入力（合計0）」に統一
     function buildShugi() {
@@ -230,8 +284,9 @@ MJ.screens.sheet = function (screen) {
       participants.forEach(function (pid) {
         const inp = el("input", { type: "number", inputmode: "numeric", placeholder: "例: 25000" });
         inp.value = raws[pid] != null ? raws[pid] : "";
-        inp.addEventListener("input", function () { const n = parseInt(inp.value, 10); raws[pid] = (inp.value === "" || isNaN(n)) ? null : n; });
-        const sign = el("button", { class: "sign-btn", onclick: function () { const n = parseInt(inp.value, 10); if (!isNaN(n)) { inp.value = String(-n); raws[pid] = -n; } } }, "±");
+        rawInputs[pid] = inp;
+        inp.addEventListener("input", function () { const n = parseInt(inp.value, 10); raws[pid] = (inp.value === "" || isNaN(n)) ? null : n; autoFillLast(pid); });
+        const sign = el("button", { class: "sign-btn", onclick: function () { const n = parseInt(inp.value, 10); if (!isNaN(n)) { inp.value = String(-n); raws[pid] = -n; autoFillLast(pid); } } }, "±");
         scoreBox.appendChild(el("div", { class: "score-row" }, [el("span", { class: "score-name", text: pname(pid) }), inp, sign]));
       });
       buildShugi();

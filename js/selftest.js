@@ -91,6 +91,19 @@ MJ.selftest = (function () {
       check("チップ: 込みpt差=+8", approx(p1.totalPointWithChip - p1.totalPointWithoutChip, 8), "実=" + (p1.totalPointWithChip - p1.totalPointWithoutChip));
     })();
 
+    // 7. computeResults: トップ＝残り（下位合計の符号反転）で卓合計は箱下でも必ず0
+    (function () {
+      if (!MJ.sheets) return;
+      const r = Object.assign({}, rule3(), { bustRule: D.BustRule.manual });
+      const P = ["p0", "p1", "p2"];
+      const raws = { p0: 70000, p1: 40000, p2: -5000 }; // 合計105000・p2が箱下
+      const res = MJ.sheets.computeResults(r, P, raws);
+      const sum = res.reduce(function (s, x) { return s + x.totalPointWithoutChip; }, 0);
+      const top = res.filter(function (x) { return x.rank === 1; })[0];
+      check("computeResults: 卓合計=0(箱下でもトップが残りを負う)", approx(sum, 0), "実=" + sum);
+      check("computeResults: トップ=+80(箱下の残りを負う)", top && approx(top.totalPointWithoutChip, 80), "実=" + (top && top.totalPointWithoutChip));
+    })();
+
     const passed = cases.filter(function (c) { return c.pass; }).length;
     return { passed: passed, total: cases.length, cases: cases };
   }
