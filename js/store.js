@@ -78,10 +78,15 @@ MJ.store = (function () {
 
   function clearAll() { cache = empty(); persist(); }
 
+  // 表示設定など、アプリ全体の設定（全端末で同期される）
+  function getSettings() { const c = load(); return c.settings || {}; }
+  function setSetting(key, val) { const c = load(); c.settings = c.settings || {}; c.settings[key] = val; persist(); }
+
   return {
     load: load, persist: persist,
     all: all, active: active, byId: byId,
     upsert: upsert, remove: remove, softDelete: softDelete,
     replaceAll: replaceAll, clearAll: clearAll,
+    getSettings: getSettings, setSetting: setSetting,
   };
 })();

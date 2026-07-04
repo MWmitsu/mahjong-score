@@ -32,6 +32,10 @@ MJ.screens.sheet = function (screen) {
     const titleEl = document.getElementById("app-title");
     if (titleEl) titleEl.textContent = session.name || "部屋";
 
+    // エラー表示（！）の設定（未設定は既定オン）
+    const prefs = S.getSettings();
+    const showPt = prefs.showPtError !== false, showRaw = prefs.showRawError !== false, showChip = prefs.showChipError !== false;
+
     // 上部バー（レート・種別・ルール・精算）
     const rateInput = el("input", { type: "number", inputmode: "numeric", class: "rate-input" });
     rateInput.value = session.rate != null ? session.rate : 0;
@@ -72,16 +76,22 @@ MJ.screens.sheet = function (screen) {
       table.appendChild(tr);
     } else {
       hanchans.forEach(function (h, i) {
-        // 粗点の合計が想定（人数×初期持ち点）と一致しない行はエラー表示
         const hp = (h.playerIds && h.playerIds.length) ? h.playerIds : pids.filter(function (pid) { return h.raws && h.raws[pid] != null; });
-        let rawErr = false;
-        if (rule && rule.initialScore) {
+        let title = "";
+        // 粗点の合計が想定（人数×初期持ち点）と一致しない
+        if (showRaw && rule && rule.initialScore) {
           const rs = hp.reduce(function (a, pid) { const v = h.raws ? h.raws[pid] : null; return a + (typeof v === "number" && !isNaN(v) ? v : 0); }, 0);
-          rawErr = (rs !== hp.length * rule.initialScore);
+          if (rs !== hp.length * rule.initialScore) title += "粗点の合計が想定（人数×持ち点）と一致しません。";
         }
+        // ポイントの合計が0でない
+        if (showPt) {
+          const ps = (h.results || []).reduce(function (a, r) { return a + (r.totalPointWithoutChip || 0); }, 0);
+          if (Math.round(ps * 10) / 10 !== 0) title += "ポイントの合計が0になっていません。";
+        }
+        const hasErr = title !== "";
         const idxCell = el("td", { class: "idx", text: String(i + 1) + (h.shugi ? "👑" : "") });
-        if (rawErr) idxCell.appendChild(el("span", { class: "row-err", title: "粗点の合計が想定（人数×持ち点）と一致しません。入力を確認してください。", text: "！" }));
-        const tr = el("tr", { class: "hanchan-row" + (rawErr ? " has-err" : ""), onclick: function () { openHanchanEditor(h); } }, [idxCell]);
+        if (hasErr) idxCell.appendChild(el("span", { class: "row-err", title: title + "行をタップして確認してください。", text: "！" }));
+        const tr = el("tr", { class: "hanchan-row" + (hasErr ? " has-err" : ""), onclick: function () { openHanchanEditor(h); } }, [idxCell]);
         pids.forEach(function (pid) {
           const r = SH.resultOf(h, pid);
           if (!r) { tr.appendChild(el("td", { class: "num rest-cell", text: "—" })); return; } // 抜け番
@@ -112,7 +122,7 @@ MJ.screens.sheet = function (screen) {
     const chipRow = el("tr", { class: "chip-row" }, [chipIdxCell]);
     function chipTotal() { return pids.reduce(function (a, pid) { const n = parseInt(chipInputs[pid] ? chipInputs[pid].value : "", 10); return a + (isNaN(n) ? 0 : n); }, 0); }
     function updateChipError() {
-      const bad = chipTotal() !== 0;
+      const bad = showChip && chipTotal() !== 0;
       const badge = chipIdxCell.querySelector(".row-err");
       if (bad && !badge) chipIdxCell.appendChild(el("span", { class: "row-err", title: "チップの合計が0になっていません（受け取り＋／支払い−で合計0に）", text: "！" }));
       else if (!bad && badge) badge.parentNode.removeChild(badge);

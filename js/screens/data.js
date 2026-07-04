@@ -123,6 +123,23 @@ MJ.screens.data = function (screen) {
   ]);
   screen.appendChild(counts);
 
+  // ---- エラー表示（！マーク）の設定 ----
+  const st = S.getSettings();
+  function toggleRow(label, on, onChange) {
+    const cb = el("input", { type: "checkbox" });
+    cb.checked = on;
+    cb.addEventListener("change", function () { onChange(cb.checked); });
+    return el("label", { class: "switch-row" }, [el("span", { text: label }), cb]);
+  }
+  const errCard = el("div", { class: "card" }, [
+    el("h2", { text: "エラー表示（！マーク）" }),
+    el("div", { class: "small muted", style: "margin-bottom:8px", text: "成績表で合計が合わない行に赤い！を表示します。項目ごとにオン/オフできます。" }),
+    toggleRow("ポイントの合計が0でないとき", st.showPtError !== false, function (v) { S.setSetting("showPtError", v); }),
+    toggleRow("粗点の合計が合わないとき", st.showRawError !== false, function (v) { S.setSetting("showRawError", v); }),
+    toggleRow("チップの合計が0でないとき", st.showChipError !== false, function (v) { S.setSetting("showChipError", v); }),
+  ]);
+  screen.appendChild(errCard);
+
   const backup = el("div", { class: "card" }, [el("h2", { text: "バックアップ・復元" })]);
   backup.appendChild(el("button", { class: "btn btn-primary", style: "margin-bottom:8px", onclick: exportJSON }, "バックアップを書き出す（JSON）"));
   backup.appendChild(el("button", { class: "btn btn-secondary", style: "margin-bottom:8px", onclick: importJSON }, "バックアップから復元（JSON読み込み）"));
