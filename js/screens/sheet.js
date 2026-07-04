@@ -147,6 +147,12 @@ MJ.screens.sheet = function (screen) {
         session.chips = session.chips || {};
         const n = parseInt(inp.value, 10);
         session.chips[pid] = (inp.value === "" || isNaN(n)) ? 0 : n;
+        S.upsert("sessions", session);
+        updateSettle();
+        updateChipError();
+      });
+      // 自動計算は欄を離れた（入力完了）ときに走らせる
+      inp.addEventListener("blur", function () {
         autoFillChip(pid);
         S.upsert("sessions", session);
         updateSettle();
@@ -295,7 +301,9 @@ MJ.screens.sheet = function (screen) {
         const inp = el("input", { type: "number", inputmode: "numeric", placeholder: "例: 25000" });
         inp.value = raws[pid] != null ? raws[pid] : "";
         rawInputs[pid] = inp;
-        inp.addEventListener("input", function () { const n = parseInt(inp.value, 10); raws[pid] = (inp.value === "" || isNaN(n)) ? null : n; autoFillLast(pid); });
+        // 入力中は値を反映するだけ。自動計算は欄を離れた（入力完了）ときに走らせる。
+        inp.addEventListener("input", function () { const n = parseInt(inp.value, 10); raws[pid] = (inp.value === "" || isNaN(n)) ? null : n; });
+        inp.addEventListener("blur", function () { autoFillLast(pid); });
         const sign = el("button", { class: "sign-btn", onclick: function () { const n = parseInt(inp.value, 10); if (!isNaN(n)) { inp.value = String(-n); raws[pid] = -n; autoFillLast(pid); } } }, "±");
         scoreBox.appendChild(el("div", { class: "score-row" }, [el("span", { class: "score-name", text: pname(pid) }), inp, sign]));
       });
@@ -332,7 +340,7 @@ MJ.screens.sheet = function (screen) {
     }
 
     body.appendChild(scoreBox);
-    body.appendChild(el("div", { class: "small muted", text: "粗点＝終了時の持ち点（例: 25000）。0点以下や同点があるときだけ確認が出ます。" }));
+    body.appendChild(el("div", { class: "small muted", text: "粗点＝終了時の持ち点（例: 25000）。最後の1人は自動計算されます（他を入力して次の欄へ移ると反映）。0点以下や同点があるときだけ確認が出ます。" }));
     body.appendChild(shugiHost);
     rebuildScores();
 
@@ -341,6 +349,7 @@ MJ.screens.sheet = function (screen) {
     actions.push({ label: "キャンセル", class: "btn-secondary", onClick: function (c) { c.close(); } });
     actions.push({ label: existing ? "更新" : "確定", class: "btn-primary", onClick: function (c) {
       if (participants.length !== seats) { UI.toast("出場した人を" + seats + "人選んでください"); return; }
+      autoFillLast(); // 最後の1人が空欄のままなら、確定時に自動計算してから進む
       const shugi = shugiState.read();
       if (shugi === "SUM_ERROR") { UI.toast("役満祝儀の合計が0になりません（差を0にしてください）"); return; }
       onConfirm(participants.slice(), raws, shugi, existing, c);
