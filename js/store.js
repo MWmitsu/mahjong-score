@@ -5,7 +5,16 @@ MJ.store = (function () {
   "use strict";
 
   const KEY = "mahjong-score:v1";
-  const empty = function () { return { schemaVersion: 2, players: [], rules: [], rooms: [], matches: [], sessions: [] }; };
+  const KINDS = ["players", "rules", "sessions"];
+  const empty = function () { return { schemaVersion: 3, players: [], rules: [], sessions: [] }; };
+
+  // 各コレクションを配列として保証し、旧構造(rooms/matches＝未使用)を取り除く（移行）
+  function normalize(c) {
+    KINDS.forEach(function (k) { if (!Array.isArray(c[k])) c[k] = []; });
+    delete c.rooms; delete c.matches;
+    c.schemaVersion = 3;
+    return c;
+  }
 
   let cache = null;
 
@@ -20,8 +29,8 @@ MJ.store = (function () {
       console.error("読み込み失敗。初期化します。", e);
       cache = empty();
     }
-    // 後方互換: 各コレクションを配列として保証（壊れた値は []）
-    ["players", "rules", "rooms", "matches", "sessions"].forEach(function (k) { if (!Array.isArray(cache[k])) cache[k] = []; });
+    // 後方互換: 配列保証＋旧構造(rooms/matches)の除去
+    normalize(cache);
     return cache;
   }
 
@@ -71,8 +80,7 @@ MJ.store = (function () {
   }
 
   function replaceAll(doc) {
-    cache = Object.assign(empty(), doc || {});
-    ["players", "rules", "rooms", "matches", "sessions"].forEach(function (k) { if (!Array.isArray(cache[k])) cache[k] = []; });
+    cache = normalize(Object.assign(empty(), doc || {}));
     persist();
   }
 

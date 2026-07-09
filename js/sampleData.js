@@ -76,9 +76,7 @@ MJ.sample = (function () {
       (s.hanchans || []).forEach(function (h) { (h.results || []).forEach(function (r) { refPlayers[r.playerId] = true; }); });
       if (s.ruleSetId) refRules[s.ruleSetId] = true;
     });
-    ["sessions", "matches", "rooms"].forEach(function (kind) {
-      doc[kind] = (doc[kind] || []).filter(function (x) { return !x.isSample; });
-    });
+    doc.sessions = (doc.sessions || []).filter(function (x) { return !x.isSample; });
     // 参照されているサンプルは実データ化(isSample解除)して残し、未参照のサンプルだけ削除
     doc.players = (doc.players || []).filter(function (p) { return !p.isSample || refPlayers[p.id]; })
       .map(function (p) { return (p.isSample && refPlayers[p.id]) ? Object.assign({}, p, { isSample: false }) : p; });
