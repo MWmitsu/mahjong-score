@@ -80,4 +80,32 @@
     if (hint) children.push(el("div", { class: "small muted", style: "margin-top:4px", text: hint }));
     return el("div", { class: "field" }, children);
   };
+
+  /* プレイヤー名（未登録・削除済みは「(不明)」）。各画面の重複定義を共通化。 */
+  UI.pname = function (id) { const p = MJ.store.byId("players", id); return p ? p.name : "(不明)"; };
+
+  /* セレクトボックス。options:[{value,label}]、value:選択値、onChange(value)。 */
+  UI.select = function (options, value, onChange) {
+    const sel = el("select");
+    (options || []).forEach(function (o) {
+      const op = el("option", { value: o.value, text: o.label });
+      if (o.value === value) op.selected = true;
+      sel.appendChild(op);
+    });
+    if (onChange) sel.addEventListener("change", function () { onChange(sel.value); });
+    return sel;
+  };
+
+  /* オン/オフ行。返り値 { row, input }。opts:{ hint, onChange(checked) }。 */
+  UI.toggle = function (label, checked, opts) {
+    opts = opts || {};
+    const input = el("input", { type: "checkbox" });
+    input.checked = !!checked;
+    if (opts.onChange) input.addEventListener("change", function () { opts.onChange(input.checked); });
+    const span = el("span", {}, opts.hint
+      ? [el("div", { text: label }), el("div", { class: "small muted", text: opts.hint })]
+      : [el("div", { text: label })]);
+    const row = el("label", { class: "switch-row" }, [span, input]);
+    return { row: row, input: input };
+  };
 })();

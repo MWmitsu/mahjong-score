@@ -20,7 +20,7 @@ MJ.screens.sheet = function (screen) {
   const rule = S.byId("rules", session.ruleSetId);
   const pids = session.playerIds || [];
   const seats = D.playerCount(session.mahjongType); // 1半荘の人数（3麻=3, 4麻=4）
-  function pname(id) { const p = S.byId("players", id); return p ? p.name : "(不明)"; }
+  const pname = UI.pname;
   // 飛びは事前に決めず、0点以下の入力時に「飛んだ？」と確認して手動で決める。
   function effectiveRule() { return Object.assign({}, rule, { bustRule: D.BustRule.manual }); }
 

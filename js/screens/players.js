@@ -69,19 +69,12 @@ MJ.screens.players = function (screen) {
     const nameInput = el("input", { type: "text", value: model.name || "", placeholder: "例: 山田", autocomplete: "off" });
     const memoInput = el("textarea", { placeholder: "メモ（任意）" });
     memoInput.value = model.memo || "";
-    const activeInput = el("input", { type: "checkbox" });
-    activeInput.checked = !!model.isActive;
+    const active = UI.toggle("有効", model.isActive, { hint: "無効にすると新規対局の選択肢から外れます" });
 
     const body = el("div", {}, [
       UI.field("名前", nameInput),
       UI.field("メモ", memoInput),
-      el("label", { class: "switch-row" }, [
-        el("span", {}, [
-          el("div", { text: "有効" }),
-          el("div", { class: "small muted", text: "無効にすると新規対局の選択肢から外れます" }),
-        ]),
-        activeInput,
-      ]),
+      active.row,
       isNew ? null : el("div", { class: "small muted", style: "margin-top:8px", text: "登録日: " + UI.fmtDate(model.createdAt) }),
     ]);
 
@@ -94,7 +87,7 @@ MJ.screens.players = function (screen) {
         if (!name) { UI.toast("名前を入力してください"); return; }
         model.name = name;
         model.memo = memoInput.value.trim();
-        model.isActive = activeInput.checked;
+        model.isActive = active.input.checked;
         S.upsert("players", model);
         ctrl.close();
         UI.toast(isNew ? "追加しました" : "保存しました");

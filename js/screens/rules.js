@@ -79,15 +79,7 @@ MJ.screens.rules = function (screen) {
     });
     return { row: UI.field(label, s), input: s };
   }
-  function toggle(label, checked, hint) {
-    const c = el("input", { type: "checkbox" });
-    c.checked = !!checked;
-    const row = el("label", { class: "switch-row" }, [
-      el("span", {}, [el("div", { text: label }), hint ? el("div", { class: "small muted", text: hint }) : null]),
-      c,
-    ]);
-    return { row: row, input: c };
-  }
+  function toggle(label, checked, hint) { return UI.toggle(label, checked, { hint: hint }); }
   function sectionTitle(t) { return el("div", { class: "form-section-title", text: t }); }
 
   // ---- 追加／編集フォーム ----

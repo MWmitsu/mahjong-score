@@ -6,7 +6,7 @@ MJ.screens.data = function (screen) {
   const S = MJ.store, D = MJ.domain, UI = MJ.ui;
   const el = UI.el;
 
-  function pname(id) { const p = S.byId("players", id); return p ? p.name : "(不明)"; }
+  const pname = UI.pname;
   function stamp() { const d = new Date(); function z(n) { return (n < 10 ? "0" : "") + n; } return d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + "-" + z(d.getHours()) + z(d.getMinutes()); }
 
   function download(filename, text, mime) {
@@ -125,12 +125,7 @@ MJ.screens.data = function (screen) {
 
   // ---- エラー表示（！マーク）の設定 ----
   const st = S.getSettings();
-  function toggleRow(label, on, onChange) {
-    const cb = el("input", { type: "checkbox" });
-    cb.checked = on;
-    cb.addEventListener("change", function () { onChange(cb.checked); });
-    return el("label", { class: "switch-row" }, [el("span", { text: label }), cb]);
-  }
+  function toggleRow(label, on, onChange) { return UI.toggle(label, on, { onChange: onChange }).row; }
   const errCard = el("div", { class: "card" }, [
     el("h2", { text: "エラー表示（！マーク）" }),
     el("div", { class: "small muted", style: "margin-bottom:8px", text: "成績表で合計が合わない行に赤い！を表示します。項目ごとにオン/オフできます。" }),

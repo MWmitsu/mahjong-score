@@ -6,7 +6,7 @@ MJ.screens.rooms = function (screen) {
   const S = MJ.store, D = MJ.domain, UI = MJ.ui;
   const el = UI.el;
 
-  function pname(id) { const p = S.byId("players", id); return p ? p.name : "(不明)"; }
+  const pname = UI.pname;
 
   screen.appendChild(el("button", { class: "btn btn-primary home-cta", onclick: function () { chooseType(); } }, "＋ 新規部屋"));
 

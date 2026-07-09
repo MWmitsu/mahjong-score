@@ -7,7 +7,7 @@ MJ.screens.ranking = function (screen) {
   const S = MJ.store, D = MJ.domain, UI = MJ.ui, ST = MJ.stats;
   const el = UI.el;
 
-  function pname(id) { const p = S.byId("players", id); return p ? p.name : "(不明)"; }
+  const pname = UI.pname;
   function pct(x) { return (x * 100).toFixed(1) + "%"; }
 
   const METRICS = [
@@ -94,10 +94,5 @@ MJ.screens.ranking = function (screen) {
     listBox.appendChild(card);
   }
 
-  function selectEl(options, value, onChange) {
-    const sel = el("select");
-    options.forEach(function (o) { const op = el("option", { value: o.value, text: o.label }); if (o.value === value) op.selected = true; sel.appendChild(op); });
-    sel.addEventListener("change", function () { onChange(sel.value); });
-    return sel;
-  }
+  function selectEl(options, value, onChange) { return UI.select(options, value, onChange); }
 };
