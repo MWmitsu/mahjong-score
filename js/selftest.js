@@ -118,6 +118,17 @@ MJ.selftest = (function () {
       check("playerTotals: 精算合計=0(端数もゼロサム)", sum === 0, "実=" + sum);
     })();
 
+    // 9. validate: 正常は警告なし／粗点合計ずれ・100点単位ずれを検出
+    (function () {
+      const r = rule3();
+      const ok = D.validate(r, [{ playerId: "a", rawScore: 50000 }, { playerId: "b", rawScore: 35000 }, { playerId: "c", rawScore: 20000 }]);
+      check("validate: 正常は警告なし", ok.length === 0, "実=" + ok.length);
+      const ng = D.validate(r, [{ playerId: "a", rawScore: 50050 }, { playerId: "b", rawScore: 35000 }, { playerId: "c", rawScore: 20000 }]);
+      check("validate: 合計/100点ずれを検出", ng.length >= 2, "実=" + ng.length);
+      const dup = D.validate(r, [{ playerId: "a", rawScore: 50000 }, { playerId: "a", rawScore: 35000 }, { playerId: "c", rawScore: 20000 }]);
+      check("validate: プレイヤー重複を検出", dup.some(function (w) { return w.message.indexOf("重複") >= 0; }), "実=" + dup.length);
+    })();
+
     const passed = cases.filter(function (c) { return c.pass; }).length;
     return { passed: passed, total: cases.length, cases: cases };
   }

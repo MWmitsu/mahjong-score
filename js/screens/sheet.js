@@ -378,13 +378,13 @@ MJ.screens.sheet = function (screen) {
       }
     }
 
-    // 入力ミス検知: 粗点の合計が初期持ち点合計とズレていたら警告（確認後は保存可）
-    const rawSum = parts.reduce(function (a, pid) { return a + raws[pid]; }, 0);
-    const expected = parts.length * (rule.initialScore || 0);
-    if (rule.initialScore && rawSum !== expected) {
+    // 入力ミス検知: domain.validate で警告を集約（粗点合計ずれ・100点単位・重複など）
+    const vinputs = parts.map(function (pid) { return { playerId: pid, rawScore: raws[pid], isDealerStart: false, chipCount: 0 }; });
+    const warnings = D.validate(effectiveRule(), vinputs);
+    if (warnings.length) {
       UI.confirm({
-        title: "粗点合計を確認",
-        message: "粗点の合計が " + rawSum.toLocaleString() + " で、想定の " + expected.toLocaleString() + " と一致しません。\n入力ミスがないか確認してください。",
+        title: "入力の確認",
+        message: warnings.map(function (w) { return "・" + w.message; }).join("\n") + "\nこのまま登録してよいですか？",
         confirmText: "このまま進む", cancelText: "戻る",
       }).then(function (ok) { if (ok) proceed(); });
     } else {

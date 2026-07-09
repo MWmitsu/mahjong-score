@@ -174,7 +174,13 @@ MJ.domain = (function () {
     });
   }
 
-  // ---- 保存前チェック（警告のみ・ブロックしない） ----
+  /* 保存前の入力チェック（警告のみ・ブロックしない）。
+     現行フローで実際に意味のある検査に限定:
+       - 参加人数（通常は出場者ピッカーで担保・保険）
+       - プレイヤー重複
+       - 粗点が100点単位でない（入力ミスの目安）
+       - 粗点合計 ≠ 人数×初期持ち点
+     ※飛び/飛ばした人は確認ポップアップ、チップは部屋単位、卓合計はトップ=残りで別途処理。 */
   function validate(rule, inputs) {
     const w = [];
     const expected = playerCount(rule.mahjongType);
@@ -185,38 +191,19 @@ MJ.domain = (function () {
     const ids = inputs.map(function (i) { return i.playerId; });
     if (new Set(ids).size !== ids.length) w.push({ severity: "warning", message: "同じプレイヤーが重複しています。" });
 
-    // 起家・席順は任意。複数起家のときだけ注意。
-    const dealers = inputs.filter(function (i) { return i.isDealerStart; });
-    if (dealers.length > 1) w.push({ severity: "warning", message: "起家が複数設定されています。" });
-
     inputs.forEach(function (i) {
-      if (i.rawScore % 100 !== 0) w.push({ severity: "info", message: "粗点 " + i.rawScore + " は100点単位ではありません。入力ミスの可能性があります。" });
+      if (typeof i.rawScore === "number" && i.rawScore % 100 !== 0) {
+        w.push({ severity: "info", message: "粗点 " + i.rawScore.toLocaleString() + " は100点単位ではありません（入力ミスの可能性）。" });
+      }
     });
 
-    if (rule.hasTobiBonus) {
-      const needsBuster = rule.tobiPaymentType === TobiPaymentType.winnerPlusLoserMinus || rule.tobiPaymentType === TobiPaymentType.bonusOnly;
-      const missing = inputs.some(function (i) {
-        return detectBusted(rule, i.rawScore, i.manualBusted) && needsBuster && !i.bustedByPlayerId;
-      });
-      if (missing) w.push({ severity: "warning", message: "飛びが発生していますが、飛ばした人が選択されていません。" });
-    }
-
-    if (inputs.length === expected) {
+    if (inputs.length === expected && rule.initialScore) {
       const rawSum = inputs.reduce(function (s, i) { return s + i.rawScore; }, 0);
       const expectedSum = expected * rule.initialScore;
       if (rawSum !== expectedSum) {
-        w.push({ severity: "warning", message: "粗点の合計が " + rawSum + " で、初期持ち点合計 " + expectedSum + " と一致しません（差 " + (rawSum - expectedSum) + "）。" });
-      }
-      if (rule.noNegativeSettlement) {
-        const setSum = inputs.reduce(function (s, i) { return s + Math.max(i.rawScore, 0); }, 0);
-        if (setSum !== expectedSum) {
-          w.push({ severity: "info", message: "箱下なしのため精算粗点合計が " + setSum + " になり、卓合計ポイントはゼロサムになりません（仕様通り）。" });
-        }
+        w.push({ severity: "warning", message: "粗点の合計が " + rawSum.toLocaleString() + " で、想定の " + expectedSum.toLocaleString() + " と一致しません（差 " + (rawSum - expectedSum).toLocaleString() + "）。" });
       }
     }
-
-    const chipSum = inputs.reduce(function (s, i) { return s + (i.chipCount || 0); }, 0);
-    if (chipSum !== 0) w.push({ severity: "info", message: "チップ枚数の合計が " + chipSum + " 枚です（通常は ±0）。入力を確認してください。" });
 
     return w;
   }
