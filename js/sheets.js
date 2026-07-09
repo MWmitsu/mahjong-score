@@ -57,16 +57,45 @@ MJ.sheets = (function () {
     }
     const unit = session.chipUnit || 0;
     const rate = session.rate || 0;
+    // レート換算yen（ポイント＋point型祝儀）は各自を対称丸めし、丸め残差をトップ（合計pt最大）が負う。
+    // これでチップが±0のときは精算(円)の合計が必ず0になる（端数で合計がずれない）。
+    const rateExact = {};
+    pids.forEach(function (pid) {
+      let v = out[pid].points * rate;
+      if (shugiType === "point") v += out[pid].shugi * rate;
+      rateExact[pid] = v;
+    });
+    const rateYen = zeroSumRoundYen(rateExact, out, pids);
     pids.forEach(function (pid) {
       const c = (session.chips || {})[pid] || 0;
       out[pid].chipCount = c;
       out[pid].chipAmount = c * unit;
+      // 内訳表示用の祝儀yen
       if (shugiType === "chip") out[pid].shugiYen = out[pid].shugi * unit;
-      else if (shugiType === "point") out[pid].shugiYen = Math.round(out[pid].shugi * rate);
+      else if (shugiType === "point") out[pid].shugiYen = roundSym(out[pid].shugi * rate);
       else if (shugiType === "yen") out[pid].shugiYen = out[pid].shugi;
-      out[pid].settle = Math.round(out[pid].points * rate) + out[pid].chipAmount + out[pid].shugiYen;
+      // 精算 = ゼロサム化したレート換算yen ＋ チップ金額 ＋（チップ/円型の）祝儀yen
+      let s = rateYen[pid] + out[pid].chipAmount;
+      if (shugiType === "chip" || shugiType === "yen") s += out[pid].shugiYen;
+      out[pid].settle = s;
     });
     return out;
+  }
+
+  // 0から離れる方向の対称丸め（負の .5 でも対称＝JS Math.round の非対称を回避）
+  function roundSym(v) { return (v < 0 ? -1 : 1) * Math.round(Math.abs(v)); }
+
+  // 各自を対称丸めし、丸め残差を「合計ポイント最大（＝トップ）」が負って合計を round(Σ実値) に一致させる
+  function zeroSumRoundYen(exactByPid, out, pids) {
+    const rounded = {}; let sum = 0, exactSum = 0;
+    pids.forEach(function (pid) { const r = roundSym(exactByPid[pid]); rounded[pid] = r; sum += r; exactSum += exactByPid[pid]; });
+    const residual = Math.round(exactSum) - sum;
+    if (residual !== 0 && pids.length) {
+      let tp = pids[0];
+      pids.forEach(function (pid) { if (out[pid].points > out[tp].points) tp = pid; });
+      rounded[tp] += residual;
+    }
+    return rounded;
   }
 
   /* 1プレイヤーの、その半荘での結果を取得 */

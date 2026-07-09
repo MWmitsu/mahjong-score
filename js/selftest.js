@@ -104,6 +104,20 @@ MJ.selftest = (function () {
       check("computeResults: トップ=+80(箱下の残りを負う)", top && approx(top.totalPointWithoutChip, 80), "実=" + (top && top.totalPointWithoutChip));
     })();
 
+    // 8. playerTotals: 端数が出る配点でも精算(円)の合計は0（チップ±0のとき）
+    (function () {
+      if (!MJ.sheets) return;
+      const r = Object.assign({}, rule3(), { bustRule: D.BustRule.manual });
+      const P = ["p0", "p1", "p2"];
+      const raws = { p0: 50300, p1: 30300, p2: 24400 }; // 合計105000・端数の出る配点
+      const res = MJ.sheets.computeResults(r, P, raws);
+      const ses = { playerIds: P, mahjongType: "three", rate: 50, chipUnit: 100, shugiType: "none",
+        hanchans: [{ playerIds: P, raws: raws, results: res, shugi: null }], chips: {} };
+      const t = MJ.sheets.playerTotals(ses);
+      const sum = P.reduce(function (a, p) { return a + t[p].settle; }, 0);
+      check("playerTotals: 精算合計=0(端数もゼロサム)", sum === 0, "実=" + sum);
+    })();
+
     const passed = cases.filter(function (c) { return c.pass; }).length;
     return { passed: passed, total: cases.length, cases: cases };
   }
