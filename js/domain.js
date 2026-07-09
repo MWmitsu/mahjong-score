@@ -45,7 +45,6 @@ MJ.domain = (function () {
       bustRule: BustRule.zeroOrBelow,
       noNegativeSettlement: true,
       chipUnitAmount: 200,
-      chipPointIncludedInMainRanking: false,
       pointToYenRate: null,
       yakumanShugiType: "chip", // none | chip | point | yen（役満祝儀の処理方法）
       roundingRule: RoundingRule.none,

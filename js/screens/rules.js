@@ -127,7 +127,6 @@ MJ.screens.rules = function (screen) {
 
     const chipUnit = num("チップ単価(円/枚)", model.chipUnitAmount);
     const rate = num("ポイント→円レート(円/1pt)", model.pointToYenRate, { placeholder: "未設定", hint: "設定するとチップ込みを金額換算" });
-    const chipInMain = toggle("チップをメインランキングに含める", model.chipPointIncludedInMainRanking, "通常はオフ（メインはチップ抜き）");
     const shugiSel = sel("役満祝儀の処理", [
       { value: "none", label: "なし" }, { value: "chip", label: "チップ(枚)" },
       { value: "point", label: "ポイント(pt)" }, { value: "yen", label: "金額(円)" },
@@ -162,7 +161,7 @@ MJ.screens.rules = function (screen) {
       bust.row, noNeg.row, hasTobi.row, tobiBox,
 
       sectionTitle("チップ・役満祝儀"),
-      chipUnit.row, rate.row, chipInMain.row, shugiSel.row,
+      chipUnit.row, rate.row, shugiSel.row,
 
       sectionTitle("その他"),
       rounding.row,
@@ -194,7 +193,6 @@ MJ.screens.rules = function (screen) {
         model.chipUnitAmount = parseInt(chipUnit.input.value, 10) || 0;
         const rv = String(rate.input.value).trim();
         model.pointToYenRate = rv === "" ? null : (parseInt(rv, 10) || null);
-        model.chipPointIncludedInMainRanking = chipInMain.input.checked;
         model.yakumanShugiType = shugiSel.input.value;
         model.roundingRule = rounding.input.value;
         model.memo = memoInput.value.trim();
