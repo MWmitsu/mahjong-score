@@ -90,11 +90,38 @@ MJ.store = (function () {
   function getSettings() { const c = load(); return c.settings || {}; }
   function setSetting(key, val) { const c = load(); c.settings = c.settings || {}; c.settings[key] = val; persist(); }
 
+  // ---- クラウド同期のリモート適用（部分マージ。sessions は残す/1件だけ差し替え） ----
+  // メイン（players/rules/settings）だけをリモートで置き換え、sessions は保持する。
+  function applyRemoteMain(main) {
+    const c = load();
+    if (main) {
+      c.players = Array.isArray(main.players) ? main.players : [];
+      c.rules = Array.isArray(main.rules) ? main.rules : [];
+      c.settings = main.settings || {};
+    }
+    persist();
+  }
+  // 1部屋（session）だけをリモートで追加/更新する。
+  function applyRemoteSession(session) {
+    if (!session || !session.id) return;
+    const c = load();
+    const idx = c.sessions.findIndex(function (s) { return s.id === session.id; });
+    if (idx >= 0) c.sessions[idx] = session; else c.sessions.push(session);
+    persist();
+  }
+  // 1部屋（session）をリモート削除に合わせてローカルからも消す。
+  function removeRemoteSession(id) {
+    const c = load();
+    const idx = c.sessions.findIndex(function (s) { return s.id === id; });
+    if (idx >= 0) { c.sessions.splice(idx, 1); persist(); }
+  }
+
   return {
     load: load, persist: persist,
     all: all, active: active, byId: byId,
     upsert: upsert, remove: remove, softDelete: softDelete,
     replaceAll: replaceAll, clearAll: clearAll,
     getSettings: getSettings, setSetting: setSetting,
+    applyRemoteMain: applyRemoteMain, applyRemoteSession: applyRemoteSession, removeRemoteSession: removeRemoteSession,
   };
 })();

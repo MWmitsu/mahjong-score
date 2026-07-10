@@ -180,6 +180,37 @@ MJ.selftest = (function () {
       check("stats: dのトビ回数=1", sd.bustCount === 1, "実=" + sd.bustCount);
     })();
 
+    // 13. cloud.computePush: 変更した部屋だけ書く・削除検出
+    (function () {
+      if (!MJ.cloud || !MJ.cloud._internal) return;
+      const CP = MJ.cloud._internal.computePush;
+      const doc = { players: [{ id: "p" }], rules: [], settings: {}, schemaVersion: 3, sessions: [{ id: "s1", x: 1 }, { id: "s2", x: 2 }] };
+      const p1 = CP(doc, null, {});
+      check("push初回: main変更あり", p1.mainChanged === true);
+      check("push初回: s1,s2を書込", p1.writes.length === 2);
+      const last = { s1: JSON.stringify({ id: "s1", x: 1 }), s2: JSON.stringify({ id: "s2", x: 2 }) };
+      const p2 = CP(Object.assign({}, doc, { sessions: [{ id: "s1", x: 9 }, { id: "s2", x: 2 }] }), p1.mainHash, last);
+      check("push差分: main不変", p2.mainChanged === false, "実=" + p2.mainChanged);
+      check("push差分: s1のみ書込", p2.writes.length === 1 && p2.writes[0].id === "s1");
+      const p3 = CP(Object.assign({}, doc, { sessions: [{ id: "s1", x: 1 }] }), p1.mainHash, last);
+      check("push削除: s2の削除を検出", p3.deletes.length === 1 && p3.deletes[0] === "s2");
+    })();
+
+    // 14. cloud.assembleCloud: 新形式・旧形式移行・和集合・重複優先
+    (function () {
+      if (!MJ.cloud || !MJ.cloud._internal) return;
+      const AC = MJ.cloud._internal.assembleCloud;
+      const a = AC({ players: [{ id: "p" }], rules: [], settings: {} }, [{ id: "s1" }]);
+      check("assemble新形式: sessions取込・移行不要", a.sessions.length === 1 && a.migrating === false);
+      const b = AC({ players: [], rules: [], sessions: [{ id: "s1" }, { id: "s2" }] }, []);
+      check("assemble旧形式: main.sessions採用・要移行", b.sessions.length === 2 && b.migrating === true);
+      const c = AC({ sessions: [{ id: "s1" }] }, [{ id: "s2" }]);
+      check("assemble和集合: 両方マージ", c.sessions.length === 2);
+      const d = AC({ sessions: [{ id: "s1", from: "main" }] }, [{ id: "s1", from: "sub" }]);
+      check("assemble重複: サブコレクション優先", d.sessions.length === 1 && d.sessions[0].from === "sub");
+      check("assemble空: null", AC(null, []) === null);
+    })();
+
     const passed = cases.filter(function (c) { return c.pass; }).length;
     return { passed: passed, total: cases.length, cases: cases };
   }
