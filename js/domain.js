@@ -143,7 +143,7 @@ MJ.domain = (function () {
       const settlement = rule.noNegativeSettlement ? Math.max(inp.rawScore, 0) : inp.rawScore;
       let base = (settlement - rule.returnScore) / 1000 * rule.pointPer1000;
       base = applyRounding(base, rule.roundingRule);
-      const uma = (rank - 1) < rule.umaPoints.length ? rule.umaPoints[rank - 1] : 0;
+      const uma = (rule.umaPoints && (rank - 1) < rule.umaPoints.length) ? rule.umaPoints[rank - 1] : 0;
       const oka = (rule.hasOka && rank === 1) ? rule.okaPoint : 0;
       const tobi = tobiByPlayer[inp.playerId] || 0;
       const busted = detectBusted(rule, inp.rawScore, inp.manualBusted);

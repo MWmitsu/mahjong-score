@@ -35,7 +35,7 @@ MJ.screens.rules = function (screen) {
     const list = el("div", { class: "menu" });
     group.forEach(function (r) {
       const u = usageCount(r.id);
-      const summary = r.initialScore + "/" + r.returnScore + " ・ ウマ" + r.umaPoints.join("/") + (r.hasOka ? " ・ オカ" + r.okaPoint : "");
+      const summary = r.initialScore + "/" + r.returnScore + " ・ ウマ" + (r.umaPoints || []).join("/") + (r.hasOka ? " ・ オカ" + r.okaPoint : "");
       list.appendChild(el("button", { class: "tile", onclick: function () { openForm(r, false); } }, [
         el("span", { class: "emoji", text: "⚙️" }),
         el("span", { style: "min-width:0; flex:1" }, [

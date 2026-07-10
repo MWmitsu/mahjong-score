@@ -129,6 +129,57 @@ MJ.selftest = (function () {
       check("validate: プレイヤー重複を検出", dup.some(function (w) { return w.message.indexOf("重複") >= 0; }), "実=" + dup.length);
     })();
 
+    // 10. 抜け番: 出場した半荘だけ集計・各半荘ゼロサム
+    (function () {
+      if (!MJ.sheets || !MJ.stats) return;
+      const r = Object.assign({}, rule3(), { bustRule: D.BustRule.manual });
+      function mk(parts, raws) { return { playerIds: parts.slice(), raws: raws, results: MJ.sheets.computeResults(r, parts, raws), shugi: null }; }
+      const H1 = mk(["p1", "p2", "p3"], { p1: 50000, p2: 35000, p3: 20000 });
+      const H2 = mk(["p1", "p2", "p4"], { p1: 45000, p2: 35000, p4: 25000 });
+      const ses = { playerIds: ["p1", "p2", "p3", "p4"], mahjongType: "three", rate: 50, chipUnit: 0, shugiType: "none", hanchans: [H1, H2], chips: {} };
+      const z1 = H1.results.reduce(function (a, x) { return a + x.totalPointWithoutChip; }, 0);
+      const z2 = H2.results.reduce(function (a, x) { return a + x.totalPointWithoutChip; }, 0);
+      check("抜け番: 各半荘ゼロサム", approx(z1, 0) && approx(z2, 0), "z1=" + z1 + " z2=" + z2);
+      check("抜け番: p3は1戦のみ", MJ.stats.playerStats([ses], "p3").games === 1, "実=" + MJ.stats.playerStats([ses], "p3").games);
+      check("抜け番: p4は1戦のみ", MJ.stats.playerStats([ses], "p4").games === 1);
+      check("抜け番: p1は2戦", MJ.stats.playerStats([ses], "p1").games === 2);
+    })();
+
+    // 11. 役満祝儀: 旧形式は抜け番の非出場者に付かない／新形式は各自値そのまま
+    (function () {
+      if (!MJ.sheets) return;
+      const r = Object.assign({}, rule3(), { bustRule: D.BustRule.manual });
+      const parts = ["p1", "p2", "p3"];
+      const raws = { p1: 50000, p2: 35000, p3: 20000 };
+      const base = { playerIds: parts.slice(), raws: raws, results: MJ.sheets.computeResults(r, parts, raws) };
+      const legacy = Object.assign({}, base, { shugi: { winnerId: "p1", amount: 2 } });
+      const ses = { playerIds: ["p1", "p2", "p3", "p4"], mahjongType: "three", rate: 50, chipUnit: 100, shugiType: "chip", hanchans: [legacy], chips: {} };
+      const t = MJ.sheets.playerTotals(ses);
+      check("旧祝儀: 和了者p1=+4(出場3人基準)", t.p1.shugi === 4, "実=" + t.p1.shugi);
+      check("旧祝儀: 抜け番p4=0", t.p4.shugi === 0, "実=" + t.p4.shugi);
+      const nv = MJ.sheets.shugiValuesOf({ shugi: { values: { p1: 2, p2: -1, p3: -1 } } }, parts);
+      check("新祝儀: valuesをそのまま返す", nv.p1 === 2 && nv.p3 === -1);
+    })();
+
+    // 12. stats: トップ率・最高連勝・トビ回数
+    (function () {
+      if (!MJ.sheets || !MJ.stats) return;
+      const r = Object.assign({}, rule4(), { bustRule: D.BustRule.manual });
+      const P = ["a", "b", "c", "d"];
+      function mk(raws, busted) {
+        const res = MJ.sheets.computeResults(r, P, raws, null, busted ? { d: "a" } : null, busted ? { d: true } : null);
+        return { playerIds: P.slice(), raws: raws, results: res, shugi: null };
+      }
+      const H1 = mk({ a: 40000, b: 30000, c: 20000, d: 10000 });
+      const H2 = mk({ a: 45000, b: 30000, c: 25000, d: 0 }, true);
+      const ses = { playerIds: P, mahjongType: "four", rate: 50, chipUnit: 0, shugiType: "none", hanchans: [H1, H2], chips: {} };
+      const sa = MJ.stats.playerStats([ses], "a");
+      const sd = MJ.stats.playerStats([ses], "d");
+      check("stats: aは2戦・トップ率1.0", sa.games === 2 && approx(sa.topRate, 1), "games=" + sa.games + " top=" + sa.topRate);
+      check("stats: aの最高連勝=2", sa.maxTopStreak === 2, "実=" + sa.maxTopStreak);
+      check("stats: dのトビ回数=1", sd.bustCount === 1, "実=" + sd.bustCount);
+    })();
+
     const passed = cases.filter(function (c) { return c.pass; }).length;
     return { passed: passed, total: cases.length, cases: cases };
   }
