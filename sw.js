@@ -1,9 +1,11 @@
 /* Service Worker（ホスティング時のオフライン対応・PWA化用）。
    file:// やローカルでは登録されない（index.html 側でガード）。
    アプリのファイルを更新したら CACHE のバージョンを上げること。 */
-const CACHE = "mahjong-v19";
+const CACHE = "mahjong-v20";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest", "./icon.svg",
+  "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png",
+  "./privacy.html", "./delete-account.html",
   "./css/styles.css",
   "./js/domain.js", "./js/store.js", "./js/sampleData.js", "./js/selftest.js",
   "./js/ui.js", "./js/components.js", "./js/sheets.js", "./js/stats.js", "./js/cloud.js", "./js/app.js",

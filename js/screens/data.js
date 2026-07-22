@@ -94,6 +94,53 @@ MJ.screens.data = function (screen) {
     });
   }
 
+  // ---- アカウント削除（App Store / Google Play の必須要件：アプリ内から削除できること） ----
+  function deleteAccountFlow() {
+    const local = UI.toggle("この端末に保存されたデータも削除する", false, {
+      hint: "オフにすると、この端末の記録は残ります（ログアウトした状態になります）。",
+    });
+    const body = el("div", {}, [
+      el("div", { class: "dialog-msg" }, [
+        el("p", { text: "Googleログイン用のアカウントと、クラウドに保存された全データ（部屋・対局・プレイヤー・ルール・設定）を削除します。" }),
+        el("p", { text: "この操作は取り消せません。必要なら先にバックアップを書き出してください。" }),
+      ]),
+      local.row,
+    ]);
+    UI.sheet({
+      title: "アカウントを削除しますか？",
+      body: body,
+      dismissible: true,
+      actions: [
+        { label: "キャンセル", class: "btn-secondary", onClick: function (c) { c.close(); } },
+        {
+          label: "削除する", class: "btn-danger", onClick: function (c) {
+            c.close();
+            UI.toast("削除しています…");
+            MJ.cloud.deleteAccount().then(function () {
+              if (local.input.checked) { S.clearAll(); MJ.sample.seedDefaultRulesIfNeeded(); }
+              UI.toast("アカウントを削除しました");
+              MJ.rerender();
+            }).catch(function (e) {
+              const code = (e && e.code) || "";
+              if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") { UI.toast("削除を中止しました"); MJ.rerender(); return; }
+              console.error("deleteAccount", e);
+              UI.sheet({
+                title: "削除できませんでした",
+                body: el("div", { class: "dialog-msg" }, [
+                  el("p", { text: ((e && e.message) || "不明なエラー") + (code ? "（" + code + "）" : "") }),
+                  el("p", { text: "通信状況を確認して、もう一度お試しください。" }),
+                ]),
+                dismissible: true,
+                actions: [{ label: "閉じる", class: "btn-primary", onClick: function (c2) { c2.close(); } }],
+              });
+              MJ.rerender();
+            });
+          },
+        },
+      ],
+    });
+  }
+
   // ---- 画面 ----
   const cloud = MJ.cloud ? MJ.cloud.status() : { available: false };
   const cloudCard = el("div", { class: "card" }, [el("h2", { text: "クラウド同期（自動バックアップ）" })]);
@@ -108,7 +155,9 @@ MJ.screens.data = function (screen) {
   } else if (cloud.signedIn) {
     cloudCard.appendChild(el("div", { class: "small", style: "color:var(--pos);font-weight:600", text: "✓ 同期中：" + cloud.email }));
     cloudCard.appendChild(el("div", { class: "small muted", style: "margin:6px 0 10px", text: "入力すると自動でクラウドに保存され、別の端末でも同じデータが見られます。手動バックアップは不要です。" }));
-    cloudCard.appendChild(el("button", { class: "btn btn-secondary", onclick: function () { MJ.cloud.signOut(); } }, "ログアウト"));
+    cloudCard.appendChild(el("button", { class: "btn btn-secondary", style: "margin-bottom:8px", onclick: function () { MJ.cloud.signOut(); } }, "ログアウト"));
+    cloudCard.appendChild(el("button", { class: "btn btn-danger", onclick: deleteAccountFlow }, "アカウントを削除"));
+    cloudCard.appendChild(el("div", { class: "small muted", style: "margin-top:6px", text: "アカウントとクラウド上の全データを完全に削除します。" }));
   } else {
     cloudCard.appendChild(el("div", { class: "small muted", style: "margin-bottom:10px", text: "Googleでログインすると、データが自動でクラウドに保存され、機種変更や複数端末でも消えません。" }));
     cloudCard.appendChild(el("button", { class: "btn btn-primary", onclick: function () { MJ.cloud.signIn(); } }, "Googleでログイン"));
@@ -154,6 +203,15 @@ MJ.screens.data = function (screen) {
   const danger = el("div", { class: "card" }, [el("h2", { text: "危険な操作" })]);
   danger.appendChild(el("button", { class: "btn btn-danger", onclick: clearAll }, "すべてのデータを削除"));
   screen.appendChild(danger);
+
+  const about = el("div", { class: "card" }, [el("h2", { text: "このアプリについて" })]);
+  about.appendChild(el("div", { class: "small", style: "margin-bottom:6px" }, [
+    el("a", { href: "privacy.html", target: "_blank", rel: "noopener", text: "プライバシーポリシー" }),
+  ]));
+  about.appendChild(el("div", { class: "small" }, [
+    el("a", { href: "delete-account.html", target: "_blank", rel: "noopener", text: "アカウント削除の方法" }),
+  ]));
+  screen.appendChild(about);
 
   function row(label, value) { return el("div", { class: "stat-row" }, [el("span", { text: label }), el("span", { class: "v num", text: value })]); }
 };

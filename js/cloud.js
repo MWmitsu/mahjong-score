@@ -84,6 +84,32 @@ MJ.cloud = (function () {
   }
   function signOutNow() { if (auth) auth.signOut(); }
 
+  /* アカウント削除（App Store 5.1.1(v) / Google Play のアカウント削除要件で必須）。
+     クラウド上の全データ（部屋のサブコレクション → メイン）を消してから、ログイン用アカウント自体を削除する。
+     ローカル(localStorage)のデータは消さない（呼び出し側で選択できるようにする）。 */
+  function deleteAccount() {
+    if (!isAvailable() || !user || !db) return Promise.reject(new Error("ログインしていません"));
+    const u = user;
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; } // 削除中に再アップロードしない
+    if (unsub) { unsub(); unsub = null; }                          // 受信も止める
+    applyingRemote = true;                                         // 以降のローカル変更を送信しない
+    return sessionsCol().get()
+      .then(function (snap) { return Promise.all(snap.docs.map(function (d) { return d.ref.delete(); })); })
+      .then(function () { return docRef().delete(); })
+      .then(function () {
+        return u.delete().catch(function (e) {
+          // 前回ログインから時間が経つと再認証を求められる
+          if (e && e.code === "auth/requires-recent-login") {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            return u.reauthenticateWithPopup(provider).then(function () { return u.delete(); });
+          }
+          throw e;
+        });
+      })
+      .then(function () { lastMain = null; lastSession = {}; applyingRemote = false; })
+      .catch(function (e) { applyingRemote = false; throw e; });
+  }
+
   function docRef() { return db.collection("users").doc(user.uid); }
   function sessionsCol() { return docRef().collection("sessions"); }
 
@@ -242,7 +268,7 @@ MJ.cloud = (function () {
   }
 
   return {
-    init: init, status: status, signIn: signIn, signOut: signOutNow,
+    init: init, status: status, signIn: signIn, signOut: signOutNow, deleteAccount: deleteAccount,
     onChange: onChange, onLocalChange: onLocalChange, pushNow: pushNow,
     _internal: { mainHash: mainHash, assembleCloud: assembleCloud, computePush: computePush },
   };
